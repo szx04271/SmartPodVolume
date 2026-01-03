@@ -51,7 +51,6 @@ BOOL CSmartPodVolumeDlg::OnInitDialog()
 	DEV_BROADCAST_DEVICEINTERFACE_W notificationFilter = {};
 	notificationFilter.dbcc_size = sizeof(notificationFilter);
 	notificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
-	notificationFilter.dbcc_classguid = BLUETOOTH_CLASS_GUID;
 	m_hDevNotify = RegisterDeviceNotificationW(
 		this->m_hWnd,
 		&notificationFilter,
@@ -121,7 +120,7 @@ afx_msg LRESULT CSmartPodVolumeDlg::OnDevicechange(WPARAM wParam, LPARAM lParam)
 		auto info = utils::GetDeviceInfoFromPath(pDevInf->dbcc_name);
 		spdlog::info(L"Device arrived, id={}, name= {}, setup class guid = {}, setup class name = {}, device name = {}", info.deviceInstanceId, pDevInf->dbcc_name, info.classGuid,
 			info.classDescription, info.deviceFriendlyName);
-		if (true) {
+		if (true) { // TODO: 此处从配置读取判断是否为目标设备
 			// Bluetooth Audio Sink
 			const float targetVolumePercent = 30.0f; // TODO: 从配置读取
 			if (utils::SetDeviceVolume(info.deviceInstanceId.c_str(), targetVolumePercent)) {

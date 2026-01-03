@@ -58,28 +58,31 @@ BOOL CSmartPodVolumeApp::InitInstance()
 	spdlog::info(L"SmartPodVolume started.");
 
 	CSmartPodVolumeDlg dlg;
-
+	// The quick brown fox jumps over the lazy dog.
 	HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 	if (FAILED(hr)) {
 		spdlog::error(L"CoInitializeEx failed: hr=0x{:08X}. Exiting.", hr);
+		::MessageBoxW(nullptr, L"初始化 COM 库失败，程序将退出。", L"SmartPodVolume 错误", MB_ICONERROR);
 		goto cleanup;
 	}
 
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
+	/*
 	if (nResponse == IDOK)
 	{
-		// TODO: 在此放置处理何时�?
+		// TO*DO: 在此放置处理何时�?
 		//  “确定”来关闭对话框的代码
 	}
 	else if (nResponse == IDCANCEL)
 	{
-		// TODO: 在此放置处理何时�?
+		// TO*DO: 在此放置处理何时�?
 		//  “取消”来关闭对话框的代码
 	}
-	else if (nResponse == -1)
+	else*/ if (nResponse == -1)
 	{
 		TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+		spdlog::error(L"Dialog creation failed, the application will unexpectedly terminate.");
 	}
 
 cleanup:
@@ -88,7 +91,7 @@ cleanup:
 	ControlBarCleanUp();
 #endif
 
-	if(SUCCEEDED(hr)) {
+	if (SUCCEEDED(hr)) {
 		CoUninitialize();
 	}
 
