@@ -1,0 +1,20 @@
+﻿<Window x:Class="SmartPodVolumeWizard.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SmartPodVolumeWizard"
+        mc:Ignorable="d"
+        SizeToContent="WidthAndHeight"
+        Title="MainWindow">
+    <Grid Height="312" Width="453">
+        <StackPanel>
+            <Grid Margin="5">
+                <Label x:Name="bkgndServiceStatusLabel" Content="已停止" HorizontalAlignment="Left" Margin="0,0,0,0" VerticalAlignment="Center"/>
+                <Button x:Name="startButton" Content="开始" Width="90" HorizontalAlignment="Left" Margin="353,0,0,0" Click="startButton_Click"/>
+            </Grid>
+            <Button x:Name="Sta" Content="Start Volume Wizard" Width="150" Height="30" HorizontalAlignment="Center"/>
+        </StackPanel>
+
+    </Grid>
+</Window>

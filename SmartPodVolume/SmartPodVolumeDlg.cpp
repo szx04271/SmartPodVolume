@@ -113,13 +113,16 @@ HCURSOR CSmartPodVolumeDlg::OnQueryDragIcon()
 // 这两种方式在此方面的差异。
 afx_msg LRESULT CSmartPodVolumeDlg::OnDevicechange(WPARAM wParam, LPARAM lParam) {
 	spdlog::info("OnDevicechange wp={} lp={}", wParam, lParam);
+
 	if (wParam == DBT_DEVICEARRIVAL) {
 		PDEV_BROADCAST_HDR pHdr = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
 		PDEV_BROADCAST_DEVICEINTERFACE_W pDevInf = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE_W>(pHdr);
 		// pDevInf->dbcc_classguid是设备接口类GUID，不是设备安装类GUID，不能直接传给SetupDiGetClassDescriptionW
+
 		auto info = utils::GetDeviceInfoFromPath(pDevInf->dbcc_name);
 		spdlog::info(L"Device arrived, id={}, name= {}, setup class guid = {}, setup class name = {}, device name = {}", info.deviceInstanceId, pDevInf->dbcc_name, info.classGuid,
 			info.classDescription, info.deviceFriendlyName);
+
 		if (true) { // TODO: 此处从配置读取判断是否为目标设备
 			const float targetVolumePercent = 30.0f; // TODO: 从配置读取
 			if (utils::SetDeviceVolume(info.deviceInstanceId.c_str(), targetVolumePercent)) {
