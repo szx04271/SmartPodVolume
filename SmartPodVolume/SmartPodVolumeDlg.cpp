@@ -121,7 +121,6 @@ afx_msg LRESULT CSmartPodVolumeDlg::OnDevicechange(WPARAM wParam, LPARAM lParam)
 		spdlog::info(L"Device arrived, id={}, name= {}, setup class guid = {}, setup class name = {}, device name = {}", info.deviceInstanceId, pDevInf->dbcc_name, info.classGuid,
 			info.classDescription, info.deviceFriendlyName);
 		if (true) { // TODO: 此处从配置读取判断是否为目标设备
-			// Bluetooth Audio Sink
 			const float targetVolumePercent = 30.0f; // TODO: 从配置读取
 			if (utils::SetDeviceVolume(info.deviceInstanceId.c_str(), targetVolumePercent)) {
 				spdlog::info(L"Successfully set volume of device {} to {}%", info.deviceInstanceId, targetVolumePercent);

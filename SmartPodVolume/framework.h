@@ -28,6 +28,7 @@
 #include <cfgmgr32.h> // 用于 CM_ 函授，遍历设备树
 #include <vector>
 #include <algorithm>
+#include "nlohmann/json.hpp"
 
 #pragma comment(lib,"Rpcrt4.lib")
 #pragma comment(lib,"setupapi.lib")
