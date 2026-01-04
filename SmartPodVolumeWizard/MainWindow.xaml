@@ -3,18 +3,58 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:SmartPodVolumeWizard"
         mc:Ignorable="d"
         SizeToContent="WidthAndHeight"
-        Title="MainWindow">
-    <Grid Height="312" Width="453">
-        <StackPanel>
-            <Grid Margin="5">
-                <Label x:Name="bkgndServiceStatusLabel" Content="已停止" HorizontalAlignment="Left" Margin="0,0,0,0" VerticalAlignment="Center"/>
-                <Button x:Name="startButton" Content="开始" Width="90" HorizontalAlignment="Left" Margin="353,0,0,0" Click="startButton_Click"/>
-            </Grid>
-            <Button x:Name="Sta" Content="Start Volume Wizard" Width="150" Height="30" HorizontalAlignment="Center"/>
-        </StackPanel>
+        Title="SmartPodVolume 设置向导">
+    <Window.Resources>
+        <Thickness x:Key="labelPadding">4</Thickness>
+        <Thickness x:Key="stackSpacing">0,0,0,5</Thickness>
+        <Thickness x:Key="tabPagePadding">0</Thickness>
+    </Window.Resources>
+    <StackPanel Margin="5" Width="390">
+        <Grid Margin="{StaticResource stackSpacing}">
+            <TextBlock x:Name="bkgndServiceStatusLabel" Text="已停止" FontWeight="Bold" HorizontalAlignment="Left" Padding="{StaticResource labelPadding}" VerticalAlignment="Center"/>
+            <Button x:Name="startButton" Content="开始" Width="90" HorizontalAlignment="Right" Margin="0,0,0,0" Click="startButton_Click"/>
+        </Grid>
+        <TabControl>
+            <TabItem Header="已知设备">
+                <ListView x:Name="whiteListView" Height="200" Margin="{StaticResource tabPagePadding}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="友好名称" Width="70" />
+                            <GridViewColumn Header="期望音量(%)" Width="70" />
+                            <GridViewColumn Header="类" Width="100" />
+                            <GridViewColumn Header="设备实例ID" Width="100" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </TabItem>
+            <TabItem Header="黑名单设备">
+                <ListView x:Name="blackListView" Height="200" Margin="{StaticResource tabPagePadding}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="友好名称" Width="70" />
+                            <GridViewColumn Header="类" Width="100" />
+                            <GridViewColumn Header="设备实例ID" Width="100" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </TabItem>
+            <TabItem Header="待重试设备">
+                <ListView x:Name="retryListView" Height="200" Margin="{StaticResource tabPagePadding}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="友好名称" Width="70" />
+                            <GridViewColumn Header="期望音量(%)" Width="70" />
+                            <GridViewColumn Header="类" Width="100" />
+                            <GridViewColumn Header="设备实例ID" Width="100" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </TabItem>
+        </TabControl>
+    </StackPanel>
 
-    </Grid>
 </Window>
