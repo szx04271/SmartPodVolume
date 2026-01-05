@@ -34,4 +34,5 @@ protected:
 	afx_msg LRESULT OnDevicechange(WPARAM wParam, LPARAM lParam);
 public:
 	afx_msg void OnDestroy();
+	afx_msg void OnBnClickedDisplayNewDeviceDialog();
 };

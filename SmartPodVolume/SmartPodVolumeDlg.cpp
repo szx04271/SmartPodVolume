@@ -7,6 +7,7 @@
 #include "SmartPodVolume.h"
 #include "SmartPodVolumeDlg.h"
 #include "utils.h"
+#include "NewDeviceDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -34,6 +35,7 @@ BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_WM_QUERYDRAGICON()
 	ON_MESSAGE(WM_DEVICECHANGE, &CSmartPodVolumeDlg::OnDevicechange)
 	ON_WM_DESTROY()
+	ON_BN_CLICKED(IDC_DISPLAY_NEW_DEVICE_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog)
 END_MESSAGE_MAP()
 
 
@@ -166,4 +168,10 @@ void CSmartPodVolumeDlg::OnDestroy() {
 		m_hDevNotify = nullptr;
 		spdlog::info(L"Unregistered device notification.");
 	}
+}
+
+void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
+	CNewDeviceDlg *dlg = new CNewDeviceDlg;
+	dlg->Create(IDD_NEW_DEVICE);
+	dlg->ShowWindow(SW_SHOWNORMAL);
 }

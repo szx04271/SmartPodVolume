@@ -30,11 +30,13 @@
 #include <algorithm>
 #include "nlohmann/json.hpp"
 #include <optional>
+#include <Uxtheme.h>
 
-#pragma comment(lib,"Rpcrt4.lib")
-#pragma comment(lib,"setupapi.lib")
+#pragma comment(lib, "Rpcrt4.lib")
+#pragma comment(lib, "setupapi.lib")
 #pragma comment(lib, "Mmdevapi.lib")
 #pragma comment(lib, "Cfgmgr32.lib")
+#pragma comment(lib, "uxtheme.lib")
 
 #ifndef _AFX_NO_OLE_SUPPORT
 #include <afxdtctl.h>           // MFC �?Internet Explorer 4 公共控件的支�?

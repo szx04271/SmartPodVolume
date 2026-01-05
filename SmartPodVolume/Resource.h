@@ -1,18 +1,21 @@
 ﻿//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ 生成的包含文件�?
-// �?SmartPodVolume.rc 使用
+// Microsoft Visual C++ 生成的包含文件。
+// 供 SmartPodVolume.rc 使用
 //
-#define IDR_MAINFRAME					128
-#define IDD_SMARTPODVOLUME_DIALOG				102
+#define IDD_SMARTPODVOLUME_DIALOG       102
+#define IDR_MAINFRAME                   128
+#define IDD_NEW_DEVICE                  129
+#define IDC_NEW_DEVICE_INFO             1000
+#define IDC_DISPLAY_NEW_DEVICE_DIALOG   1002
+#define IDC_TIP_STATIC                  1003
 
-// 新对象的下一组默认�?
-//
+// Next default values for new objects
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-
-#define _APS_NEXT_RESOURCE_VALUE	129
-#define _APS_NEXT_CONTROL_VALUE		1000
-#define _APS_NEXT_SYMED_VALUE		101
-#define _APS_NEXT_COMMAND_VALUE		32771
+#define _APS_NEXT_RESOURCE_VALUE        131
+#define _APS_NEXT_COMMAND_VALUE         32771
+#define _APS_NEXT_CONTROL_VALUE         1004
+#define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
