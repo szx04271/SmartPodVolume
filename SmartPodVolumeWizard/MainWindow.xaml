@@ -26,7 +26,7 @@
                             <GridViewColumn Header="友好名称" Width="100" />
                             <GridViewColumn Header="期望音量(%)" Width="70" />
                             <GridViewColumn Header="描述" Width="70" />
-                            <GridViewColumn Header="MM设备ID" Width="100" />
+                            <GridViewColumn Header="MM设备ID" Width="100" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -37,7 +37,7 @@
                         <GridView>
                             <GridViewColumn Header="友好名称" Width="100" />
                             <GridViewColumn Header="描述" Width="70" />
-                            <GridViewColumn Header="MM设备ID" Width="100" />
+                            <GridViewColumn Header="MM设备ID" Width="100" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -49,7 +49,7 @@
                             <GridViewColumn Header="友好名称" Width="100" />
                             <GridViewColumn Header="期望音量(%)" Width="70" />
                             <GridViewColumn Header="描述" Width="70" />
-                            <GridViewColumn Header="MM设备ID" Width="100" />
+                            <GridViewColumn Header="MM设备ID" Width="100" />
                         </GridView>
                     </ListView.View>
                 </ListView>
