@@ -23,10 +23,10 @@
                 <ListView x:Name="whiteListView" Height="200" Margin="{StaticResource tabPagePadding}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="友好名称" Width="70" />
+                            <GridViewColumn Header="友好名称" Width="100" />
                             <GridViewColumn Header="期望音量(%)" Width="70" />
-                            <GridViewColumn Header="类" Width="100" />
-                            <GridViewColumn Header="设备实例ID" Width="100" />
+                            <GridViewColumn Header="描述" Width="70" />
+                            <GridViewColumn Header="MM设备ID" Width="100" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -35,9 +35,9 @@
                 <ListView x:Name="blackListView" Height="200" Margin="{StaticResource tabPagePadding}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="友好名称" Width="70" />
-                            <GridViewColumn Header="类" Width="100" />
-                            <GridViewColumn Header="设备实例ID" Width="100" />
+                            <GridViewColumn Header="友好名称" Width="100" />
+                            <GridViewColumn Header="描述" Width="70" />
+                            <GridViewColumn Header="MM设备ID" Width="100" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -46,10 +46,10 @@
                 <ListView x:Name="retryListView" Height="200" Margin="{StaticResource tabPagePadding}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="友好名称" Width="70" />
+                            <GridViewColumn Header="友好名称" Width="100" />
                             <GridViewColumn Header="期望音量(%)" Width="70" />
-                            <GridViewColumn Header="类" Width="100" />
-                            <GridViewColumn Header="设备实例ID" Width="100" />
+                            <GridViewColumn Header="描述" Width="70" />
+                            <GridViewColumn Header="MM设备ID" Width="100" />
                         </GridView>
                     </ListView.View>
                 </ListView>

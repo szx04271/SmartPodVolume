@@ -29,6 +29,7 @@
 #include <vector>
 #include <algorithm>
 #include "nlohmann/json.hpp"
+#include <optional>
 
 #pragma comment(lib,"Rpcrt4.lib")
 #pragma comment(lib,"setupapi.lib")

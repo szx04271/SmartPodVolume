@@ -20,8 +20,8 @@ namespace utils {
 		}
 	}
 
-	utils::DeviceInfo GetDeviceInfoFromPath(LPCWSTR devicePath) noexcept {
-		DeviceInfo ret;
+	utils::DeviceInterfaceInfo GetDeviceInterfaceInfoFromPath(LPCWSTR devicePath) noexcept {
+		DeviceInterfaceInfo ret;
 		PSP_DEVICE_INTERFACE_DETAIL_DATA_W detail = nullptr;
 		SP_DEVINFO_DATA devInfoData = {};
 		HDEVINFO hDevInfo = SetupDiCreateDeviceInfoList(nullptr, nullptr);
@@ -97,22 +97,22 @@ namespace utils {
 		return false;
 	}
 
-	bool SetDeviceVolume(LPCWSTR deviceInstanceId, float volumePercent) noexcept {
+	std::vector<ATL::CComPtr<IMMDevice>> FindAssociatedMmDevices(LPCWSTR deviceInstanceId) noexcept {
 		HRESULT hr = S_OK;
 		CComPtr<IMMDeviceEnumerator> enumerator;
 		CComPtr<IMMDeviceCollection> deviceCollection;
 		CComPtr<IMMDevice> device;
 		CComPtr<IAudioEndpointVolume> endpointVolume;
-		bool foundAny = false;
+		std::vector<CComPtr<IMMDevice>> ret;
 
 		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
 		if (FAILED(hr)) {
-			return foundAny;
+			return ret;
 		}
 
 		hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &deviceCollection);
 		if (FAILED(hr)) {
-			return foundAny;
+			return ret;
 		}
 
 		UINT count;
@@ -137,13 +137,7 @@ namespace utils {
 			fullPnpId += id;
 			if (IsDeviceSameAsOrDescendantOf(fullPnpId, deviceInstanceId)) {
 				spdlog::info(L"Matched.");
-				hr = device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)&endpointVolume);
-				if (SUCCEEDED(hr)) {
-					hr = endpointVolume->SetMasterVolumeLevelScalar(volumePercent / 100.0f, nullptr);
-					if (SUCCEEDED(hr)) {
-						foundAny = true;
-					}
-				}
+				ret.emplace_back(device);				
 			}
 			else {
 				spdlog::info(L"Not matched.");
@@ -152,7 +146,54 @@ namespace utils {
 			CoTaskMemFree(id);
 		}
 
-		return foundAny;
+		return ret;
+	}
+
+	HRESULT SetDeviceVolume(CComPtr<IMMDevice> mmDevice, float volumePercent) noexcept {
+		CComPtr<IAudioEndpointVolume> endpointVolume;
+		HRESULT hr = mmDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)&endpointVolume);
+		if (SUCCEEDED(hr)) {
+			hr = endpointVolume->SetMasterVolumeLevelScalar(volumePercent / 100.0f, nullptr);
+		}
+		return hr;
+	}
+
+	std::optional<utils::MmDeviceInfo> GetMmDeviceInfo(CComPtr<IMMDevice> mmDevice) noexcept {
+		assert(mmDevice);
+
+		MmDeviceInfo ret;
+		HRESULT hr = S_OK;
+		LPWSTR id;
+		hr = mmDevice->GetId(&id);
+		if (SUCCEEDED(hr) && id) {
+			ret.id.assign(id);
+			CoTaskMemFree(id);
+		}
+		else {
+			spdlog::error(L"Failed to query the ID of an MmDevice (interface pointer={:#x}). (What the fuck?)", (uintptr_t)mmDevice.p);
+			return std::nullopt; // if we can't get id, then other attributes are useless. 大败而归。
+		}
+
+		CComPtr<IPropertyStore> propertyStore;
+		hr = mmDevice->OpenPropertyStore(STGM_READ, &propertyStore);
+		if (FAILED(hr)) {
+			return ret;
+		}
+
+		PROPVARIANT pv;
+		hr = propertyStore->GetValue(PKEY_Device_FriendlyName, &pv);
+		if (SUCCEEDED(hr) && pv.vt == VT_LPWSTR) {
+			ret.friendlyName.assign(pv.pwszVal);
+			PropVariantClear(&pv);
+		}
+
+		hr = propertyStore->GetValue(PKEY_Device_DeviceDesc, &pv);
+		if (SUCCEEDED(hr) && pv.vt == VT_LPWSTR) {
+			ret.description.assign(pv.pwszVal);
+			PropVariantClear(&pv);
+		}
+
+		return ret;
 	}
 
 }

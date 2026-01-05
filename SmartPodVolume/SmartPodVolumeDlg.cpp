@@ -119,19 +119,41 @@ afx_msg LRESULT CSmartPodVolumeDlg::OnDevicechange(WPARAM wParam, LPARAM lParam)
 		PDEV_BROADCAST_DEVICEINTERFACE_W pDevInf = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE_W>(pHdr);
 		// pDevInf->dbcc_classguid是设备接口类GUID，不是设备安装类GUID，不能直接传给SetupDiGetClassDescriptionW
 
-		auto info = utils::GetDeviceInfoFromPath(pDevInf->dbcc_name);
-		spdlog::info(L"Device arrived, id={}, name= {}, setup class guid = {}, setup class name = {}, device name = {}", info.deviceInstanceId, pDevInf->dbcc_name, info.classGuid,
-			info.classDescription, info.deviceFriendlyName);
+		auto diInfo = utils::GetDeviceInterfaceInfoFromPath(pDevInf->dbcc_name);
+		spdlog::info(L"Device arrived, id={}, name= {}, setup class guid = {}, setup class name = {}, device name = {}", diInfo.deviceInstanceId, pDevInf->dbcc_name, diInfo.classGuid,
+			diInfo.classDescription, diInfo.deviceFriendlyName);
 
-		if (true) { // TODO: 此处从配置读取判断是否为目标设备
-			const float targetVolumePercent = 30.0f; // TODO: 从配置读取
-			if (utils::SetDeviceVolume(info.deviceInstanceId.c_str(), targetVolumePercent)) {
-				spdlog::info(L"Successfully set volume of device {} to {}%", info.deviceInstanceId, targetVolumePercent);
+		auto mmDevices = utils::FindAssociatedMmDevices(diInfo.deviceInstanceId.c_str());
+		if (mmDevices.empty()) {
+			return TRUE;
+		}
+
+		for (auto& mmDevice : mmDevices) {
+			auto mmDeviceInfo = utils::GetMmDeviceInfo(mmDevice);
+			if (mmDeviceInfo.has_value()) {
+				spdlog::info(L"Discovered MMDevice (friendlyName={}, id={}, desc={})", mmDeviceInfo->friendlyName,
+					mmDeviceInfo->id, mmDeviceInfo->description);
 			}
 			else {
-				spdlog::warn(L"Failed to set volume of device {}", info.deviceInstanceId);
+				spdlog::warn(L"Discovered MMDevice but no info. WTF?");
+			}
+			HRESULT hr = utils::SetDeviceVolume(mmDevice, 14);
+			if (SUCCEEDED(hr)) {
+				spdlog::info(L"SUCCESSFULLY set volume");
+			}
+			else {
+				spdlog::warn(L"FAILED to set volume");
 			}
 		}
+		//if (true) { // TODO: 此处从配置读取判断是否为目标设备
+		//	const float targetVolumePercent = 30.0f; // TODO: 从配置读取
+		//	if (utils::SetDeviceVolume(info.deviceInstanceId.c_str(), targetVolumePercent)) {
+		//		spdlog::info(L"Successfully set volume of device {} to {}%", info.deviceInstanceId, targetVolumePercent);
+		//	}
+		//	else {
+		//		spdlog::warn(L"Failed to set volume of device {}", info.deviceInstanceId);
+		//	}
+		//}
 	}
 	return TRUE;
 }
