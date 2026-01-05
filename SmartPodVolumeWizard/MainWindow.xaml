@@ -7,6 +7,8 @@
         xmlns:local="clr-namespace:SmartPodVolumeWizard"
         mc:Ignorable="d"
         SizeToContent="WidthAndHeight"
+        ResizeMode="CanMinimize"
+        WindowStartupLocation="CenterScreen"
         Title="SmartPodVolume 设置向导">
     <Window.Resources>
         <Thickness x:Key="labelPadding">4</Thickness>
