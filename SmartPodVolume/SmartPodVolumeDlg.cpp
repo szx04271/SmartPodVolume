@@ -8,6 +8,7 @@
 #include "SmartPodVolumeDlg.h"
 #include "utils.h"
 #include "NewDeviceDlg.h"
+#include "VolumeSetFailDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -36,6 +37,7 @@ BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_MESSAGE(WM_DEVICECHANGE, &CSmartPodVolumeDlg::OnDevicechange)
 	ON_WM_DESTROY()
 	ON_BN_CLICKED(IDC_DISPLAY_NEW_DEVICE_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog)
+	ON_BN_CLICKED(IDC_DISPLAY_VOLUME_SET_FAIL_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog)
 END_MESSAGE_MAP()
 
 
@@ -173,5 +175,11 @@ void CSmartPodVolumeDlg::OnDestroy() {
 void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
 	CNewDeviceDlg *dlg = new CNewDeviceDlg;
 	dlg->Create(IDD_NEW_DEVICE);
+	dlg->ShowWindow(SW_SHOWNORMAL);
+}
+
+void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
+	CVolumeSetFailDlg* dlg = new CVolumeSetFailDlg;
+	dlg->Create(IDD_VOLUME_SET_FAIL);
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }

@@ -2,19 +2,19 @@
 #include "DeviceInfoListCtrl.h"
 
 
-// CNewDeviceDlg 对话框
+// CVolumeSetFailDlg 对话框
 
-class CNewDeviceDlg : public CDialog
+class CVolumeSetFailDlg : public CDialog
 {
-	DECLARE_DYNAMIC(CNewDeviceDlg)
+	DECLARE_DYNAMIC(CVolumeSetFailDlg)
 
 public:
-	CNewDeviceDlg(CWnd* pParent = nullptr);   // 标准构造函数
-	virtual ~CNewDeviceDlg();
+	CVolumeSetFailDlg(CWnd* pParent = nullptr);   // 标准构造函数
+	virtual ~CVolumeSetFailDlg();
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
-	enum { IDD = IDD_NEW_DEVICE };
+	enum { IDD = IDD_VOLUME_SET_FAIL };
 #endif
 
 protected:
@@ -22,7 +22,6 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
-	virtual BOOL OnInitDialog();
 	CDeviceInfoListCtrl m_deviceInfoReport;
 	virtual void PostNcDestroy();
 	virtual void OnOK();

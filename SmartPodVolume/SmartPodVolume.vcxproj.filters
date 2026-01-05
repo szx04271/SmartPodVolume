@@ -45,6 +45,12 @@
     <ClInclude Include="NewDeviceDlg.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DeviceInfoListCtrl.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="VolumeSetFailDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SmartPodVolume.cpp">
@@ -60,6 +66,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="NewDeviceDlg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DeviceInfoListCtrl.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="VolumeSetFailDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
