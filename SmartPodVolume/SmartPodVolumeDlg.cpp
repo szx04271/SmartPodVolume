@@ -9,12 +9,13 @@
 #include "utils.h"
 #include "NewDeviceDlg.h"
 #include "VolumeSetFailDlg.h"
+#include "constants.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-const GUID BLUETOOTH_CLASS_GUID = { 0xe0cbf06c,0xcd8b,0x4647,0xbb,0x8a,0x26,0x3b,0x43,0xf0,0xf9,0x74 };
+
 
 // CSmartPodVolumeDlg 对话��?
 
@@ -121,43 +122,7 @@ afx_msg LRESULT CSmartPodVolumeDlg::OnDevicechange(WPARAM wParam, LPARAM lParam)
 	if (wParam == DBT_DEVICEARRIVAL) {
 		PDEV_BROADCAST_HDR pHdr = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
 		PDEV_BROADCAST_DEVICEINTERFACE_W pDevInf = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE_W>(pHdr);
-		// pDevInf->dbcc_classguid是设备接口类GUID，不是设备安装类GUID，不能直接传给SetupDiGetClassDescriptionW
-
-		auto diInfo = utils::GetDeviceInterfaceInfoFromPath(pDevInf->dbcc_name);
-		spdlog::info(L"Device arrived, id={}, name= {}, setup class guid = {}, setup class name = {}, device name = {}", diInfo.deviceInstanceId, pDevInf->dbcc_name, diInfo.classGuid,
-			diInfo.classDescription, diInfo.deviceFriendlyName);
-
-		auto mmDevices = utils::FindAssociatedMmDevices(diInfo.deviceInstanceId.c_str());
-		if (mmDevices.empty()) {
-			return TRUE;
-		}
-
-		for (auto& mmDevice : mmDevices) {
-			auto mmDeviceInfo = utils::GetMmDeviceInfo(mmDevice);
-			if (mmDeviceInfo.has_value()) {
-				spdlog::info(L"Discovered MMDevice (friendlyName={}, id={}, desc={})", mmDeviceInfo->friendlyName,
-					mmDeviceInfo->id, mmDeviceInfo->description);
-			}
-			else {
-				spdlog::warn(L"Discovered MMDevice but no info. WTF?");
-			}
-			HRESULT hr = utils::SetDeviceVolume(mmDevice, 14);
-			if (SUCCEEDED(hr)) {
-				spdlog::info(L"SUCCESSFULLY set volume");
-			}
-			else {
-				spdlog::warn(L"FAILED to set volume");
-			}
-		}
-		//if (true) { // TODO: 此处从配置读取判断是否为目标设备
-		//	const float targetVolumePercent = 30.0f; // TODO: 从配置读取
-		//	if (utils::SetDeviceVolume(info.deviceInstanceId.c_str(), targetVolumePercent)) {
-		//		spdlog::info(L"Successfully set volume of device {} to {}%", info.deviceInstanceId, targetVolumePercent);
-		//	}
-		//	else {
-		//		spdlog::warn(L"Failed to set volume of device {}", info.deviceInstanceId);
-		//	}
-		//}
+		DeviceArrived(pDevInf);
 	}
 	return TRUE;
 }
@@ -173,13 +138,142 @@ void CSmartPodVolumeDlg::OnDestroy() {
 }
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
-	CNewDeviceDlg *dlg = new CNewDeviceDlg;
+	utils::MmDeviceInfo info;
+	info.friendlyName = L"并夕夕耳机";
+	info.description = L"耳机";
+	info.id = L"{XXXXXXX}.{XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}";
+
+	CNewDeviceDlg *dlg = new CNewDeviceDlg(info);
 	dlg->Create(IDD_NEW_DEVICE);
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
-	CVolumeSetFailDlg* dlg = new CVolumeSetFailDlg;
+	utils::MmDeviceInfo info;
+	info.friendlyName = L"劣质耳机";
+	info.description = L"耳机";
+	info.id = L"{XXXXXXX}.{XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}";
+
+	CVolumeSetFailDlg* dlg = new CVolumeSetFailDlg(E_NOTIMPL, info);
 	dlg->Create(IDD_VOLUME_SET_FAIL);
 	dlg->ShowWindow(SW_SHOWNORMAL);
+}
+
+void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
+	// devInf->dbcc_classguid是设备接口类GUID，不是设备安装类GUID，不能直接传给SetupDiGetClassDescriptionW
+
+	auto diInfo = utils::GetDeviceInterfaceInfoFromPath(devInf->dbcc_name);
+	spdlog::info(L"Device arrived, id={}, name= {}, setup class guid = {}, setup class name = {}, device name = {}", diInfo.deviceInstanceId, devInf->dbcc_name, diInfo.classGuid,
+		diInfo.classDescription, diInfo.deviceFriendlyName);
+
+	auto mmDevices = utils::FindAssociatedMmDevices(diInfo.deviceInstanceId.c_str());
+	if (mmDevices.empty()) {
+		// no mmDevice attached to it
+		return;
+	}
+
+	for (auto& mmDevice : mmDevices) {
+		auto mmDeviceInfo = utils::GetMmDeviceInfo(mmDevice);
+		if (mmDeviceInfo.has_value()) {
+			spdlog::info(L"Discovered MMDevice (friendlyName={}, id={}, desc={})", mmDeviceInfo->friendlyName,
+				mmDeviceInfo->id, mmDeviceInfo->description);
+
+			// lookup all known mmDevices
+			try {
+				auto configJsonString = utils::ReadConfigFile();
+				json j;
+
+				if (configJsonString.size()) {
+					try {
+						j = json::parse(configJsonString);
+					}
+					catch (std::exception& e) {
+						spdlog::warn(L"Bad config content ({}). Deleting...", utils::AcpToWc(e.what()));
+						DeleteFileW((utils::GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str());
+						NewMmDevice(*mmDeviceInfo);
+						return;
+					}
+				}
+				else {
+					spdlog::info("Config is empty.");
+					NewMmDevice(*mmDeviceInfo);
+					return;
+				}
+
+				auto FindDeviceInList = [&j, &mmDeviceInfo](const char* listKey) -> json {
+					auto itList = j.find(listKey);
+					if (itList != j.end() && itList->is_array()) {
+						for (auto& deviceInList : *itList) {
+							auto itId = deviceInList.find(conf_key::MMDEVICE_ID);
+							if (itId != deviceInList.end() && itId->is_string()) {
+								auto id = utils::U8ToWc(itId->get<std::string>());
+								if (!_wcsicmp(id.c_str(), mmDeviceInfo->id.c_str())) {
+									return deviceInList;
+								}
+							}
+						}
+					}
+
+					return json();
+				};
+
+				if (!FindDeviceInList(conf_key::BLACKLIST).is_null()) {
+					spdlog::info("This device is in blacklist. Ignore.");
+					return;
+				}
+				else {
+					json deviceJson = FindDeviceInList(conf_key::WHITELIST);
+					bool white = !deviceJson.is_null();
+					bool toRetry = white ? false : !((deviceJson = FindDeviceInList(conf_key::RETRYLIST)).is_null());
+
+					if (white || toRetry) {
+						bool configValid = false;
+						HRESULT hr = S_OK;
+
+						auto itVolume = deviceJson.find(conf_key::EXPECTED_VOLUME);
+						if (itVolume != deviceJson.end() && itVolume->is_number_integer()) {
+							auto expectedVol = itVolume->get<int>();
+							if (0 <= expectedVol && expectedVol <= 100) {
+								configValid = true;
+								hr = utils::SetDeviceVolume(mmDevice, expectedVol);
+							}
+						}
+						
+						if (configValid) {
+							if (SUCCEEDED(hr)) {
+								spdlog::info(L"SUCCESSFULLY set volume");
+							}
+							else {
+								spdlog::error(L"FAILED to set volume (hr={})", hr);
+
+								// ask user if we should retry next time
+								CVolumeSetFailDlg *setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
+								setFailDlg->Create(IDD_VOLUME_SET_FAIL);
+								setFailDlg->ShowWindow(SW_SHOWNORMAL);
+							}
+						}
+						else {
+							spdlog::error(L"FAILED to set volume (invalid configuration)");
+							// TODO: tell user? or handle in other way?
+						}
+					}
+					else {
+						// this is a new device
+						NewMmDevice(*mmDeviceInfo);
+					}
+				}
+			}
+			catch (std::exception& e) {
+				spdlog::error(L"Error looking up known devices ({})", utils::AcpToWc(e.what()));
+			}
+			catch (...) {
+				spdlog::error(L"Error looking up known devices (unknown error)");
+			}
+		}
+		else {
+			spdlog::warn(L"Discovered MMDevice but no info. WTF?");
+		}
+
+
+	}
 }

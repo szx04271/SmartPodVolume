@@ -31,6 +31,7 @@
 #include "nlohmann/json.hpp"
 #include <optional>
 #include <Uxtheme.h>
+#include <string_view>
 
 #pragma comment(lib, "Rpcrt4.lib")
 #pragma comment(lib, "setupapi.lib")
@@ -48,7 +49,7 @@
 #include <afxcontrolbars.h>     // MFC 支持功能区和控制�?
 
 
-
+using nlohmann::json;
 
 
 

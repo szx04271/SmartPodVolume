@@ -9,7 +9,7 @@ class CNewDeviceDlg : public CDialog
 	DECLARE_DYNAMIC(CNewDeviceDlg)
 
 public:
-	CNewDeviceDlg(CWnd* pParent = nullptr);   // 标准构造函数
+	CNewDeviceDlg(const utils::MmDeviceInfo& info, CWnd* pParent = nullptr);   // 标准构造函数
 	virtual ~CNewDeviceDlg();
 
 // 对话框数据
@@ -22,6 +22,7 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
+	utils::MmDeviceInfo m_mmDeviceInfo;
 	virtual BOOL OnInitDialog();
 	CDeviceInfoListCtrl m_deviceInfoReport;
 	virtual void PostNcDestroy();

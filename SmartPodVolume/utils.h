@@ -16,7 +16,7 @@ namespace utils {
 
 	std::vector<CComPtr<IMMDevice>> FindAssociatedMmDevices(LPCWSTR deviceInstanceId) noexcept;
 
-	HRESULT SetDeviceVolume(CComPtr<IMMDevice> mmDevice, float volumePercent) noexcept;
+	HRESULT SetDeviceVolume(CComPtr<IMMDevice> mmDevice, int volumePercent) noexcept;
 
 	/* There can be more than one IMMDevice attached to one Device Interface (definition as mentioned above) */
 
@@ -28,4 +28,16 @@ namespace utils {
 		//std::wstring deviceInterfaceId; // ID of the audio adapter to which this MMDevice is attached to
 	};
 	std::optional<MmDeviceInfo> GetMmDeviceInfo(CComPtr<IMMDevice> mmDevice) noexcept;
+
+	std::string WcToU8(std::wstring_view wstr) noexcept;
+
+	std::wstring U8ToWc(std::string_view u8str) noexcept;
+
+	std::wstring AcpToWc(std::string_view acpStr) noexcept;
+
+	// with '\\'
+	std::wstring GetRealCurrentDirectory() noexcept;
+
+	std::string ReadConfigFile() noexcept;
+
 }

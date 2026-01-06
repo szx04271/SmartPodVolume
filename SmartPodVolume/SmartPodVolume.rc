@@ -85,32 +85,35 @@ FONT 9, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     PUSHBUTTON      "新设备对话框",IDC_DISPLAY_NEW_DEVICE_DIALOG,7,7,50,14
     PUSHBUTTON      "设置失败对话框",IDC_DISPLAY_VOLUME_SET_FAIL_DIALOG,7,26,50,14
+    LTEXT           "此界面用于开发测试",IDC_STATIC,81,61,67,8
 END
 
-IDD_NEW_DEVICE DIALOGEX 0, 0, 188, 116
+IDD_NEW_DEVICE DIALOGEX 0, 0, 188, 126
 STYLE DS_SYSMODAL | DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "发现新音频输出设备"
 FONT 9, "Microsoft YaHei UI", 400, 0, 0x0
 BEGIN
     LTEXT           "发现您刚连接了这个音频输出设备：",IDC_STATIC,7,7,173,9
-    CONTROL         "",IDC_NEW_DEVICE_INFO,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,7,18,173,33
-    LTEXT           "请问是否需本程序记忆您给该设备设置的音量，并在下次连接时自动恢复该音量？",IDC_STATIC,7,54,173,17
-    PUSHBUTTON      "否(&N)",IDNO,130,74,50,14
-    DEFPUSHBUTTON   "是(&Y)",IDYES,77,74,50,14
-    LTEXT           "ps: 选了否，以后想反悔，把它从【设置向导】的【黑名单设备】里删掉就好了~",IDC_TIP_STATIC,7,92,173,17
+    CONTROL         "",IDC_NEW_DEVICE_INFO,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,7,18,173,43
+    LTEXT           "请问是否需本程序记忆您给该设备设置的音量，并在下次连接时自动恢复该音量？",IDC_STATIC,7,64,173,17
+    PUSHBUTTON      "否(&N)",IDNO,130,84,50,14
+    DEFPUSHBUTTON   "是(&Y)",IDYES,77,84,50,14
+    LTEXT           "ps: 选了否，以后想反悔，把它从【设置向导】的【黑名单设备】里删掉就好了~",IDC_TIP_STATIC,7,102,173,17
 END
 
-IDD_VOLUME_SET_FAIL DIALOGEX 0, 0, 188, 116
+IDD_VOLUME_SET_FAIL DIALOGEX 0, 0, 188, 135
 STYLE DS_SYSMODAL | DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "音量设置失败"
 FONT 9, "Microsoft YaHei UI", 400, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "想(&Y)",IDYES,74,74,50,14
-    PUSHBUTTON      "不想(&N)",IDNO,130,74,50,14
+    PUSHBUTTON      "想(&Y)",IDYES,74,92,50,14
+    DEFPUSHBUTTON   "不想(&N)",IDNO,130,92,50,14
     LTEXT           "抱歉，此设备音量设置失败，请您先手动调整！",IDC_STATIC,7,7,145,8
-    CONTROL         "",IDC_DEVICE_INFO_REPORT,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | LVS_NOSCROLL | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,7,18,173,33
-    LTEXT           "请问您还想不想让以后该设备接入时本软件再次尝试调整音量？",IDC_STATIC,7,55,173,17
-    LTEXT           "ps: 选了不想，以后想反悔，把它从【设置向导】的【黑名单设备】里删除就好了~",IDC_TIP_STATIC,7,92,173,17
+    CONTROL         "",IDC_DEVICE_INFO_REPORT,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,7,30,173,42
+    LTEXT           "请问您还想不想让以后该设备接入时本软件再次尝试调整音量？",IDC_STATIC,7,75,173,17
+    LTEXT           "ps: 选了不想，以后想反悔，把它从【设置向导】的【黑名单设备】里删除就好了~",IDC_TIP_STATIC,7,111,173,17
+    LTEXT           "错误代码 (HRESULT): ",IDC_STATIC,7,18,69,8
+    EDITTEXT        IDC_ERR_CODE_DISPLAY,77,16,103,12,ES_AUTOHSCROLL | ES_READONLY
 END
 
 
@@ -174,7 +177,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 180
         TOPMARGIN, 7
-        BOTTOMMARGIN, 109
+        BOTTOMMARGIN, 119
     END
 
     IDD_VOLUME_SET_FAIL, DIALOG
@@ -182,7 +185,8 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 180
         TOPMARGIN, 7
-        BOTTOMMARGIN, 109
+        BOTTOMMARGIN, 128
+        HORZGUIDE, 22
     END
 END
 #endif    // APSTUDIO_INVOKED

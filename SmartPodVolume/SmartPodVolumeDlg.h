@@ -3,7 +3,8 @@
 //
 
 #pragma once
-
+#include "utils.h"
+#include "NewDeviceDlg.h"
 
 // CSmartPodVolumeDlg 对话�?
 class CSmartPodVolumeDlg : public CDialog
@@ -24,7 +25,7 @@ public:
 // 实现
 protected:
 	HICON m_hIcon;
-	HDEVNOTIFY m_hDevNotify;
+	HDEVNOTIFY m_hDevNotify = nullptr;
 
 	// 生成的消息映射函�?
 	virtual BOOL OnInitDialog();
@@ -33,7 +34,16 @@ protected:
 	DECLARE_MESSAGE_MAP()
 	afx_msg LRESULT OnDevicechange(WPARAM wParam, LPARAM lParam);
 public:
+	void DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
+	void NewMmDevice(const utils::MmDeviceInfo& info) {
+		spdlog::info(L"This is a new device. Asking user for choice.");
+		auto newDeviceDlg = new CNewDeviceDlg(info);
+		newDeviceDlg->Create(IDD_NEW_DEVICE);
+		newDeviceDlg->ShowWindow(SW_SHOWNORMAL);
+	}
+
 	afx_msg void OnDestroy();
 	afx_msg void OnBnClickedDisplayNewDeviceDialog();
 	afx_msg void OnBnClickedDisplayVolumeSetFailDialog();
+	
 };

@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "utils.h"
+#include "constants.h"
 
 namespace utils {
 	std::wstring GuidToStringW(const GUID& guid) noexcept {
@@ -149,7 +150,11 @@ namespace utils {
 		return ret;
 	}
 
-	HRESULT SetDeviceVolume(CComPtr<IMMDevice> mmDevice, float volumePercent) noexcept {
+	HRESULT SetDeviceVolume(CComPtr<IMMDevice> mmDevice, int volumePercent) noexcept {
+		if (volumePercent < 0 || volumePercent > 100) {
+			return E_INVALIDARG;
+		}
+
 		CComPtr<IAudioEndpointVolume> endpointVolume;
 		HRESULT hr = mmDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)&endpointVolume);
 		if (SUCCEEDED(hr)) {
@@ -192,6 +197,98 @@ namespace utils {
 			ret.description.assign(pv.pwszVal);
 			PropVariantClear(&pv);
 		}
+
+		return ret;
+	}
+
+	std::string WcToU8(std::wstring_view wstr) noexcept {
+		std::string ret;
+		auto bufferSize = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr.length() + 1,
+			nullptr, 0, nullptr, nullptr);
+		if (bufferSize == 0 || bufferSize == 1) {
+			return ret;
+		}
+		ret.resize(bufferSize - 1);
+		WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr.length() + 1,
+			&ret[0], bufferSize, nullptr, nullptr);
+		return ret;
+	}
+
+	std::wstring U8ToWc(std::string_view u8str) noexcept {
+		std::wstring ret;
+		auto cchBufferSize = MultiByteToWideChar(CP_UTF8, 0, u8str.data(), u8str.length() + 1,
+			nullptr, 0);
+		if (cchBufferSize == 0 || cchBufferSize == 1) {
+			return ret;
+		}
+		ret.resize(cchBufferSize - 1);
+		MultiByteToWideChar(CP_UTF8, 0, u8str.data(), u8str.length() + 1,
+			&ret[0], cchBufferSize);
+		
+		return ret;
+	}
+
+	std::wstring AcpToWc(std::string_view acpStr) noexcept {
+		std::wstring ret;
+		auto cchBufferSize = MultiByteToWideChar(CP_ACP, 0, acpStr.data(), acpStr.length() + 1,
+			nullptr, 0);
+		if (cchBufferSize == 0 || cchBufferSize == 1) {
+			return ret;
+		}
+		ret.resize(cchBufferSize - 1);
+		MultiByteToWideChar(CP_ACP, 0, acpStr.data(), acpStr.length() + 1,
+			&ret[0], cchBufferSize);
+
+		return ret;
+	}
+
+	std::wstring GetRealCurrentDirectory() noexcept {
+		std::unique_ptr<WCHAR[]> buffer = std::make_unique<WCHAR[]>(1024);
+		std::wstring ret;
+		auto len = GetModuleFileNameW(nullptr, buffer.get(), 1024);
+		if (!len) {
+			return ret;
+		}
+		
+		auto lastBackslashPointer = wcsrchr(buffer.get(), L'\\');
+		if (!lastBackslashPointer) {
+			return ret;
+		}
+		lastBackslashPointer[1] = 0;
+		ret.assign(buffer.get());
+		return ret;
+	}
+
+	std::string ReadConfigFile() noexcept {
+		std::string ret;
+
+		auto filePath = GetRealCurrentDirectory();
+		if (filePath.empty()) {
+			spdlog::error(L"Error opening config file (can't get current dir)");
+			return ret;
+		}
+		filePath += CONFIG_FILE_NAME;
+
+		FILE* file = nullptr;
+		auto err = _wfopen_s(&file, filePath.c_str(), L"rb, ccs=UTF-8");
+		if (err != 0) {
+			if (err != ENOENT) {
+				spdlog::error(L"Error opening config file (errno={}).", err);
+			}
+			return ret;
+		}
+
+		fseek(file, 0, SEEK_END);
+		auto fileSize = ftell(file);
+		if (fileSize == 0) {
+			fclose(file);
+			return ret;
+		}
+		rewind(file);
+
+		ret.resize(fileSize);
+		fread(&ret[0], fileSize, 1, file);
+		fclose(file);
 
 		return ret;
 	}

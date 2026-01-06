@@ -10,8 +10,9 @@
 
 IMPLEMENT_DYNAMIC(CNewDeviceDlg, CDialog)
 
-CNewDeviceDlg::CNewDeviceDlg(CWnd* pParent /*=nullptr*/)
-	: CDialog(IDD_NEW_DEVICE, pParent) {
+CNewDeviceDlg::CNewDeviceDlg(const utils::MmDeviceInfo& info, CWnd* pParent /*=nullptr*/)
+	: CDialog(IDD_NEW_DEVICE, pParent), 
+      m_mmDeviceInfo(info) {
 
 }
 
@@ -34,7 +35,7 @@ END_MESSAGE_MAP()
 BOOL CNewDeviceDlg::OnInitDialog() {
 	CDialog::OnInitDialog();
 
-
+	m_deviceInfoReport.SetDeviceInfo(m_mmDeviceInfo);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE

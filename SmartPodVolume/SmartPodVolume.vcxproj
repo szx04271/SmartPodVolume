@@ -195,6 +195,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="constants.h" />
     <ClInclude Include="DeviceInfoListCtrl.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="NewDeviceDlg.h" />
