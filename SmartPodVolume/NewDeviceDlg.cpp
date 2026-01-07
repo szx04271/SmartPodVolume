@@ -27,6 +27,7 @@ void CNewDeviceDlg::DoDataExchange(CDataExchange* pDX) {
 
 BEGIN_MESSAGE_MAP(CNewDeviceDlg, CDialog)
 	ON_WM_CTLCOLOR()
+	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
@@ -34,6 +35,8 @@ END_MESSAGE_MAP()
 
 BOOL CNewDeviceDlg::OnInitDialog() {
 	CDialog::OnInitDialog();
+
+	GetSystemMenu(FALSE)->EnableMenuItem(SC_CLOSE, MF_GRAYED | MF_BYCOMMAND);
 
 	m_deviceInfoReport.SetDeviceInfo(m_mmDeviceInfo);
 
@@ -59,4 +62,17 @@ HBRUSH CNewDeviceDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 
 	// TODO:  如果默认的不是所需画笔，则返回另一个画笔
 	return hbr;
+}
+
+void CNewDeviceDlg::OnClose() {
+}
+
+BOOL CNewDeviceDlg::PreTranslateMessage(MSG* pMsg) {
+	if (pMsg->message == WM_KEYDOWN) {
+		if (pMsg->wParam == VK_ESCAPE) {
+			return TRUE; // block this message
+		}
+	}
+
+	return CDialog::PreTranslateMessage(pMsg);
 }

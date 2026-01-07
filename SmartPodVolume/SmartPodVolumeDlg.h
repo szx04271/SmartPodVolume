@@ -5,6 +5,7 @@
 #pragma once
 #include "utils.h"
 #include "NewDeviceDlg.h"
+#include "MyVolumeChangeCallback.h"
 
 // CSmartPodVolumeDlg 对话�?
 class CSmartPodVolumeDlg : public CDialog
@@ -32,8 +33,10 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
-	afx_msg LRESULT OnDevicechange(WPARAM wParam, LPARAM lParam);
+	
 public:
+	afx_msg BOOL OnDeviceChange(UINT nEventType, DWORD_PTR dwData);
+
 	void DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
 	void NewMmDevice(const utils::MmDeviceInfo& info) {
 		spdlog::info(L"This is a new device. Asking user for choice.");
@@ -45,5 +48,13 @@ public:
 	afx_msg void OnDestroy();
 	afx_msg void OnBnClickedDisplayNewDeviceDialog();
 	afx_msg void OnBnClickedDisplayVolumeSetFailDialog();
-	
+
+	struct RegisteredDevice 
+	{
+		CComPtr<IAudioEndpointVolume> endpointVolume;
+		MyVolumeChangeCallback* callback;
+	};
+	std::list<RegisteredDevice> m_registeredCallbacks;
+	void RegisterVolumeNotification();
+	void UnregisterVolumeNotification();
 };

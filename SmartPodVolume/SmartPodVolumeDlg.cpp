@@ -11,6 +11,7 @@
 #include "VolumeSetFailDlg.h"
 #include "constants.h"
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -35,8 +36,8 @@ void CSmartPodVolumeDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_MESSAGE(WM_DEVICECHANGE, &CSmartPodVolumeDlg::OnDevicechange)
 	ON_WM_DESTROY()
+	ON_WM_DEVICECHANGE()
 	ON_BN_CLICKED(IDC_DISPLAY_NEW_DEVICE_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog)
 	ON_BN_CLICKED(IDC_DISPLAY_VOLUME_SET_FAIL_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog)
 END_MESSAGE_MAP()
@@ -67,8 +68,10 @@ BOOL CSmartPodVolumeDlg::OnInitDialog()
 		PostMessageW(WM_CLOSE);
 	}
 	else {
-		spdlog::info(L"RegisterDeviceNotificationW succeeded. Listening for Bluetooth device changes.");
+		spdlog::info(L"RegisterDeviceNotificationW succeeded. Listening for device changes.");
 	}
+
+	RegisterVolumeNotification();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返��?TRUE
 }
@@ -116,11 +119,12 @@ HCURSOR CSmartPodVolumeDlg::OnQueryDragIcon()
 // 但第二种就只收得到后两种设备的该消息。
 // 这两种方式似乎都有概率触发“默认音量90%多甚至100%”这一bug。暂未发现
 // 这两种方式在此方面的差异。
-afx_msg LRESULT CSmartPodVolumeDlg::OnDevicechange(WPARAM wParam, LPARAM lParam) {
-	spdlog::info("OnDevicechange wp={} lp={}", wParam, lParam);
 
-	if (wParam == DBT_DEVICEARRIVAL) {
-		PDEV_BROADCAST_HDR pHdr = reinterpret_cast<PDEV_BROADCAST_HDR>(lParam);
+BOOL CSmartPodVolumeDlg::OnDeviceChange(UINT nEventType, DWORD_PTR dwData) {
+	spdlog::info("OnDevicechange eventType={} data={}", nEventType, dwData);
+
+	if (nEventType == DBT_DEVICEARRIVAL) {
+		PDEV_BROADCAST_HDR pHdr = reinterpret_cast<PDEV_BROADCAST_HDR>(dwData);
 		PDEV_BROADCAST_DEVICEINTERFACE_W pDevInf = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE_W>(pHdr);
 		DeviceArrived(pDevInf);
 	}
@@ -135,6 +139,9 @@ void CSmartPodVolumeDlg::OnDestroy() {
 		m_hDevNotify = nullptr;
 		spdlog::info(L"Unregistered device notification.");
 	}
+
+	UnregisterVolumeNotification();
+	spdlog::info(L"Unregistered volume notification.");
 }
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
@@ -159,6 +166,90 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
 
+void CSmartPodVolumeDlg::RegisterVolumeNotification() {
+	auto j = utils::GetConfigJson();
+	if (j.is_null()) {
+		return;
+	}
+
+	auto deviceCollection = utils::GetMmDeviceCollection();
+	if (!deviceCollection) {
+		return;
+	}
+	UINT deviceCount = 0;
+	deviceCollection->GetCount(&deviceCount);
+	if (deviceCount == 0) {
+		return;
+	}
+	//                               interface             ID
+	using DeviceAndId = std::pair<CComPtr<IMMDevice>, std::wstring>;
+	std::list<DeviceAndId> deviceList;
+	HRESULT hr = S_OK;
+	for (UINT i = 0; i < deviceCount; ++i) {
+		CComPtr<IMMDevice> device;
+		hr = deviceCollection->Item(i, &device);
+		if (FAILED(hr)) {
+			spdlog::warn(L"Error getting interface of {}th(begin from 0) item of IMMDeviceCollection. Skip.", i);
+			continue;
+		}
+		LPWSTR id;
+		hr = device->GetId(&id);
+		if (FAILED(hr)) {
+			spdlog::warn(L"Error getting id of {}th(begin from 0) IMMDevice. Skip.", i);
+			continue;
+		}
+		deviceList.emplace_back(std::move(device), id);
+		CoTaskMemFree(id);
+	}
+
+	constexpr LPCSTR listKeys[2] = { conf_key::WHITELIST,conf_key::RETRYLIST };
+	for (auto listKey : listKeys) {
+		auto itList = j.find(listKey);
+		if (itList == j.end() || !itList->is_array()) {
+			continue;
+		}
+		for (auto& deviceJson : *itList) {
+			auto itId = deviceJson.find(conf_key::MMDEVICE_ID);
+			if (itId == deviceJson.end() || !itId->is_string()) continue;
+			for (auto& device : deviceList) {
+				auto idInConfig = utils::U8ToWc(itId->get<std::string>());
+				if (!_wcsicmp(device.second.c_str(), idInConfig.c_str())) {
+					// found dest device
+					CComPtr<IAudioEndpointVolume> endpointVolume;
+					hr = device.first->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)&endpointVolume);
+					if (FAILED(hr)) {
+						spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
+						continue;
+					}
+					
+					MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(device.second);
+					hr = endpointVolume->RegisterControlChangeNotify(callback);
+					if (FAILED(hr)) {
+						spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})", 
+							device.second.c_str(), hr);
+						callback->Release();
+						continue;
+					}
+
+					// registration success
+					RegisteredDevice registeredDevice = {
+						endpointVolume,callback
+					};
+					m_registeredCallbacks.emplace_back(std::move(registeredDevice));
+					spdlog::info(L"Successfully registered volume change notify for id={}", device.second);
+				}
+			}
+		}
+	}
+}
+
+void CSmartPodVolumeDlg::UnregisterVolumeNotification() {
+	for (auto& device : m_registeredCallbacks) {
+		device.endpointVolume->UnregisterControlChangeNotify(device.callback);
+		device.callback->Release();
+	}
+}
+
 void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
 	// devInf->dbcc_classguid是设备接口类GUID，不是设备安装类GUID，不能直接传给SetupDiGetClassDescriptionW
 
@@ -180,22 +271,8 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 
 			// lookup all known mmDevices
 			try {
-				auto configJsonString = utils::ReadConfigFile();
-				json j;
-
-				if (configJsonString.size()) {
-					try {
-						j = json::parse(configJsonString);
-					}
-					catch (std::exception& e) {
-						spdlog::warn(L"Bad config content ({}). Deleting...", utils::AcpToWc(e.what()));
-						DeleteFileW((utils::GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str());
-						NewMmDevice(*mmDeviceInfo);
-						return;
-					}
-				}
-				else {
-					spdlog::info("Config is empty.");
+				auto j = utils::GetConfigJson();
+				if (j.is_null()) {
 					NewMmDevice(*mmDeviceInfo);
 					return;
 				}
@@ -234,6 +311,7 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 						if (itVolume != deviceJson.end() && itVolume->is_number_integer()) {
 							auto expectedVol = itVolume->get<int>();
 							if (0 <= expectedVol && expectedVol <= 100) {
+								spdlog::info(L"Expected vol: {}%", expectedVol);
 								configValid = true;
 								hr = utils::SetDeviceVolume(mmDevice, expectedVol);
 							}

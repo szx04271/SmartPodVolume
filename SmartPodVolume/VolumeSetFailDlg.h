@@ -30,4 +30,6 @@ public:
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	CString m_errCodeString;
 	virtual BOOL OnInitDialog();
+	afx_msg void OnClose();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };

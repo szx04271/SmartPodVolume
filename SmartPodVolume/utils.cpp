@@ -99,22 +99,16 @@ namespace utils {
 	}
 
 	std::vector<ATL::CComPtr<IMMDevice>> FindAssociatedMmDevices(LPCWSTR deviceInstanceId) noexcept {
-		HRESULT hr = S_OK;
-		CComPtr<IMMDeviceEnumerator> enumerator;
-		CComPtr<IMMDeviceCollection> deviceCollection;
-		CComPtr<IMMDevice> device;
-		CComPtr<IAudioEndpointVolume> endpointVolume;
 		std::vector<CComPtr<IMMDevice>> ret;
 
-		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
-		if (FAILED(hr)) {
+		CComPtr<IMMDeviceCollection> deviceCollection = GetMmDeviceCollection();
+		if (!deviceCollection) {
 			return ret;
 		}
 
-		hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &deviceCollection);
-		if (FAILED(hr)) {
-			return ret;
-		}
+		HRESULT hr = S_OK;
+		CComPtr<IMMDevice> device;
+		CComPtr<IAudioEndpointVolume> endpointVolume;
 
 		UINT count;
 		deviceCollection->GetCount(&count);
@@ -291,6 +285,33 @@ namespace utils {
 		fclose(file);
 
 		return ret;
+	}
+
+	json GetConfigJson() noexcept {
+		auto configJsonString = utils::ReadConfigFile();
+		json j;
+
+		if (configJsonString.size()) {
+			try {
+				j = json::parse(configJsonString);
+			}
+			catch (std::exception& e) {
+				spdlog::warn(L"Bad config content ({}). Deleting...", utils::AcpToWc(e.what()));
+				DeleteFileW((utils::GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str());
+				j = json();
+			}
+		}
+		else {
+			spdlog::info("Config is empty.");
+		}
+
+		return j;
+	}
+
+	ATL::CComPtr<IMMDevice> GetIMmDeviceById() noexcept {
+		// not implemented
+		assert(false);
+		return CComPtr<IMMDevice>();
 	}
 
 }

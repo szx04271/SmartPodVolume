@@ -30,6 +30,7 @@ void CVolumeSetFailDlg::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CVolumeSetFailDlg, CDialog)
 	ON_WM_CTLCOLOR()
+	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
@@ -58,8 +59,23 @@ HBRUSH CVolumeSetFailDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 BOOL CVolumeSetFailDlg::OnInitDialog() {
 	CDialog::OnInitDialog();
 
+	GetSystemMenu(FALSE)->EnableMenuItem(SC_CLOSE, MF_GRAYED | MF_BYCOMMAND); // TODO: block alt+f4
+
 	m_deviceInfoReport.SetDeviceInfo(m_mmDeviceInfo);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
+}
+
+void CVolumeSetFailDlg::OnClose() {
+}
+
+BOOL CVolumeSetFailDlg::PreTranslateMessage(MSG* pMsg) {
+	if (pMsg->message == WM_KEYDOWN) {
+		if (pMsg->wParam == VK_ESCAPE) {
+			return TRUE; // block this message
+		}
+	}
+
+	return CDialog::PreTranslateMessage(pMsg);
 }

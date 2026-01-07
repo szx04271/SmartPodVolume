@@ -54,6 +54,9 @@
     <ClInclude Include="constants.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="MyVolumeChangeCallback.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SmartPodVolume.cpp">
@@ -75,6 +78,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="VolumeSetFailDlg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MyVolumeChangeCallback.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

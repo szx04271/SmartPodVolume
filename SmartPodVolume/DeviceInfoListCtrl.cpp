@@ -30,7 +30,7 @@ END_MESSAGE_MAP()
 
 
 void CDeviceInfoListCtrl::PreSubclassWindow() {
-	//::SetWindowTheme(GetSafeHwnd(), L"Explorer", nullptr);
+	::SetWindowTheme(GetSafeHwnd(), L"Explorer", nullptr);
 	SetExtendedStyle(GetExtendedStyle() | LVS_EX_FULLROWSELECT);
 
 	CRect rc; GetClientRect(&rc);

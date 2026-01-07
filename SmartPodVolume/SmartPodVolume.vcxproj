@@ -198,6 +198,7 @@
     <ClInclude Include="constants.h" />
     <ClInclude Include="DeviceInfoListCtrl.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="MyVolumeChangeCallback.h" />
     <ClInclude Include="NewDeviceDlg.h" />
     <ClInclude Include="nlohmann\json.hpp" />
     <ClInclude Include="nlohmann\json_fwd.hpp" />
@@ -211,6 +212,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DeviceInfoListCtrl.cpp" />
+    <ClCompile Include="MyVolumeChangeCallback.cpp" />
     <ClCompile Include="NewDeviceDlg.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

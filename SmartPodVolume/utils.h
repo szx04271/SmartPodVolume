@@ -40,4 +40,26 @@ namespace utils {
 
 	std::string ReadConfigFile() noexcept;
 
+	json GetConfigJson() noexcept;
+
+	CComPtr<IMMDevice> GetIMmDeviceById() noexcept;
+
+	inline CComPtr<IMMDeviceCollection> GetMmDeviceCollection() noexcept {
+		HRESULT hr = S_OK;
+		CComPtr<IMMDeviceEnumerator> enumerator;
+		CComPtr<IMMDeviceCollection> deviceCollection;
+
+		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
+		if (FAILED(hr)) {
+			spdlog::error(L"GetMmDeviceCollection error (CoCreateInstance error hr={})", hr);
+			return deviceCollection;
+		}
+
+		hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &deviceCollection);
+		if (FAILED(hr)) {
+			spdlog::error(L"GetMmDeviceCollection error (EnumAudioEndpoints error hr={})", hr);
+		}
+
+		return deviceCollection;
+	}
 }
