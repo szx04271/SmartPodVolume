@@ -23,13 +23,11 @@
 
 
 CSmartPodVolumeDlg::CSmartPodVolumeDlg(CWnd* pParent /*=nullptr*/)
-	: CDialog(IDD_SMARTPODVOLUME_DIALOG, pParent)
-{
+	: CDialog(IDD_SMARTPODVOLUME_DIALOG, pParent) {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
-void CSmartPodVolumeDlg::DoDataExchange(CDataExchange* pDX)
-{
+void CSmartPodVolumeDlg::DoDataExchange(CDataExchange* pDX) {
 	CDialog::DoDataExchange(pDX);
 }
 
@@ -45,8 +43,7 @@ END_MESSAGE_MAP()
 
 // CSmartPodVolumeDlg 消息处理程序
 
-BOOL CSmartPodVolumeDlg::OnInitDialog()
-{
+BOOL CSmartPodVolumeDlg::OnInitDialog() {
 	CDialog::OnInitDialog();
 
 	// 设置此对话框的图标��? 当应用程序主窗口不是对话框时，框架将自动
@@ -80,8 +77,7 @@ BOOL CSmartPodVolumeDlg::OnInitDialog()
 //  来绘制该图标��? 对于使用文档/视图模型��?MFC 应用程序��?
 //  这将由框架自动完成��?
 
-void CSmartPodVolumeDlg::OnPaint()
-{
+void CSmartPodVolumeDlg::OnPaint() {
 	if (IsIconic())
 	{
 		CPaintDC dc(this); // 用于绘制的设备上下文
@@ -107,8 +103,7 @@ void CSmartPodVolumeDlg::OnPaint()
 
 //当用户拖动最小化窗口时系统调用此函数取得光标
 //显示��?
-HCURSOR CSmartPodVolumeDlg::OnQueryDragIcon()
-{
+HCURSOR CSmartPodVolumeDlg::OnQueryDragIcon() {
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
@@ -150,7 +145,7 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
 	info.description = L"耳机";
 	info.id = L"{XXXXXXX}.{XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}";
 
-	CNewDeviceDlg *dlg = new CNewDeviceDlg(info);
+	CNewDeviceDlg* dlg = new CNewDeviceDlg(info);
 	dlg->Create(IDD_NEW_DEVICE);
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
@@ -202,55 +197,52 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification() {
 		CoTaskMemFree(id);
 	}
 
-	constexpr LPCSTR listKeys[2] = { conf_key::WHITELIST,conf_key::RETRYLIST };
-	for (auto listKey : listKeys) {
-		auto itList = j.find(listKey);
-		if (itList == j.end() || !itList->is_array()) {
-			continue;
-		}
-		for (auto& deviceJson : *itList) {
-			auto itId = deviceJson.find(conf_key::MMDEVICE_ID);
-			if (itId == deviceJson.end() || !itId->is_string()) continue;
-			for (auto& device : deviceList) {
-				auto idInConfig = utils::U8ToWc(itId->get<std::string>());
-				if (!_wcsicmp(device.second.c_str(), idInConfig.c_str())) {
-					// found dest device
-					CComPtr<IAudioEndpointVolume> endpointVolume;
-					hr = utils::QueryVolumeController(device.first, &endpointVolume);
-					if (FAILED(hr)) {
-						spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
-						continue;
-					}
-					
-					MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(device.second);
-					hr = endpointVolume->RegisterControlChangeNotify(callback);
-					if (FAILED(hr)) {
-						spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})", 
-							device.second.c_str(), hr);
-						callback->Release();
-						continue;
-					}
-
-					float volume = 0;
-					BOOL mute = FALSE;
-					hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
-					if (FAILED(hr)) {
-						spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
-							device.second.c_str(), hr);
-					}
-					hr = endpointVolume->GetMute(&mute);
-					if (FAILED(hr)) {
-						spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
-							device.second.c_str(), hr);
-					}
-
-					// registration success
-					RegisteredDevice registeredDevice = {
-						endpointVolume,callback,volume/100.f,mute
-					};
-					m_registeredCallbacks.emplace_back(std::move(registeredDevice));
-					spdlog::info(L"Successfully registered volume change notify for id={}", device.second);
+	auto itList = j.find(conf_key::WHITELIST);
+	if (itList == j.end() || !itList->is_array()) {
+		return;
+	}
+	for (auto& deviceJson : *itList) {
+		auto itId = deviceJson.find(conf_key::MMDEVICE_ID);
+		if (itId == deviceJson.end() || !itId->is_string()) continue;
+		for (auto& device : deviceList) {
+			auto idInConfig = utils::U8ToWc(itId->get<std::string>());
+			if (!_wcsicmp(device.second.c_str(), idInConfig.c_str())) {
+				// found dest device
+				CComPtr<IAudioEndpointVolume> endpointVolume;
+				hr = utils::QueryVolumeController(device.first, &endpointVolume);
+				if (FAILED(hr)) {
+					spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
+					continue;
 				}
+
+				MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(device.second);
+				hr = endpointVolume->RegisterControlChangeNotify(callback);
+				if (FAILED(hr)) {
+					spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
+						device.second.c_str(), hr);
+					callback->Release();
+					continue;
+				}
+
+				float volume = 0;
+				BOOL mute = FALSE;
+				hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
+				if (FAILED(hr)) {
+					spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
+						device.second.c_str(), hr);
+				}
+				hr = endpointVolume->GetMute(&mute);
+				if (FAILED(hr)) {
+					spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
+						device.second.c_str(), hr);
+				}
+
+				// registration success
+				RegisteredDevice registeredDevice = {
+					endpointVolume,callback,volume / 100.f,mute
+				};
+				m_registeredCallbacks.emplace_back(std::move(registeredDevice));
+				spdlog::info(L"Successfully registered volume change notify for id={}", device.second);
 			}
 		}
 	}
@@ -314,9 +306,8 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 				else {
 					json deviceJson = FindDeviceInList(conf_key::WHITELIST);
 					bool white = !deviceJson.is_null();
-					bool toRetry = white ? false : !((deviceJson = FindDeviceInList(conf_key::RETRYLIST)).is_null());
 
-					if (white || toRetry) {
+					if (white) {
 						HRESULT hr = S_OK;
 						CComPtr<IAudioEndpointVolume> endpointVol;
 						hr = utils::QueryVolumeController(mmDevice, &endpointVol);

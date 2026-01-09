@@ -45,19 +45,6 @@
                     </ListView.View>
                 </ListView>
             </TabItem>
-            <TabItem Header="待重试设备">
-                <ListView x:Name="retryListView" Height="200" Margin="{StaticResource tabPagePadding}">
-                    <ListView.View>
-                        <GridView>
-                            <GridViewColumn Header="友好名称" Width="100" />
-                            <GridViewColumn Header="静音" Width="30" />
-                            <GridViewColumn Header="期望音量(%)" Width="70" />
-                            <GridViewColumn Header="描述" Width="60" />
-                            <GridViewColumn Header="MM设备ID" Width="80" />
-                        </GridView>
-                    </ListView.View>
-                </ListView>
-            </TabItem>
         </TabControl>
     </StackPanel>
 
