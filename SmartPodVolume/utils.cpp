@@ -301,4 +301,61 @@ namespace utils {
 		return CComPtr<IMMDevice>();
 	}
 
+	HRESULT ApplyConfiguredVolume(const json& deviceJson, IMMDevice* device, /* out */ bool& isConfigInvalid) noexcept {
+		isConfigInvalid = false;
+
+		HRESULT hr = S_OK;
+		CComPtr<IAudioEndpointVolume> endpointVol;
+		hr = utils::QueryVolumeController(device, &endpointVol);
+		if (FAILED(hr)) {
+			spdlog::error(L"QueryVolumeController failed with hr={}", hr);
+			return hr;
+		}
+
+		bool volumeConfigValid = false, muteConfigValid = false;
+		bool volumeSuccess = false, muteSuccess = false;
+
+		auto itVolume = deviceJson.find(conf_key::EXPECTED_VOLUME);
+		if (itVolume != deviceJson.end() && itVolume->is_number()) {
+			auto expectedVol = itVolume->get<float>();
+			if (0.f <= expectedVol && expectedVol <= 100.f) {
+				spdlog::info(L"Expected vol: {}%", expectedVol);
+				volumeConfigValid = true;
+				hr = endpointVol->SetMasterVolumeLevelScalar(expectedVol / 100.f, nullptr);
+			}
+		}
+		if (!volumeConfigValid) {
+			isConfigInvalid = true;
+			spdlog::info(L"FAILED to set volume (invalid config)");
+		}
+		else if (FAILED(hr)) {
+			spdlog::info(L"FAILED to set volume (hr={})", hr);
+		}
+		else {
+			spdlog::info(L"SUCCESSFULLY set volume");
+			volumeSuccess = true;
+		}
+
+		HRESULT hr2 = S_OK;
+		auto itMute = deviceJson.find(conf_key::MUTE);
+		if (itMute != deviceJson.end() && itMute->is_boolean()) {
+			muteConfigValid = true;
+			auto expectedMute = itMute->get<bool>();
+			hr2 = endpointVol->SetMute(expectedMute, nullptr);
+		}
+		if (!muteConfigValid) {
+			isConfigInvalid = true;
+			spdlog::info(L"FAILED to set mute (invalid config)");
+		}
+		else if (FAILED(hr)) {
+			spdlog::info(L"FAILED to set mute (hr={})", hr);
+		}
+		else {
+			spdlog::info(L"SUCCESSFULLY set mute");
+			muteSuccess = true;
+		}
+
+		return volumeSuccess && muteSuccess ? S_OK : (SUCCEEDED(hr) ? hr2 : hr);
+	}
+
 }

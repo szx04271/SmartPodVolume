@@ -61,7 +61,11 @@ namespace utils {
 		return deviceCollection;
 	}
 
-	inline HRESULT QueryVolumeController(IMMDevice* device, IAudioEndpointVolume **controller) {
+	inline HRESULT QueryVolumeController(IMMDevice* device, IAudioEndpointVolume **controller) noexcept {
 		return device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)controller);
 	}
+
+	// If this fails, it directly writing error messages into log.
+	// If this sets isConfigInvalid to true, don't check the returned HRESULT.
+	HRESULT ApplyConfiguredVolume(const json& deviceJson, IMMDevice* device, /* out */ bool& isConfigInvalid) noexcept;
 }

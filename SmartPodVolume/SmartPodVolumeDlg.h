@@ -57,6 +57,7 @@ public:
 		bool mute;
 	};
 	std::list<RegisteredDevice> m_registeredCallbacks;
-	void RegisterVolumeNotification();
-	void UnregisterVolumeNotification();
+	void RegisterVolumeNotification(IMMDevice* device);
+	void RegisterVolumeNotificationsForAll();
+	void UnregisterAllVolumeNotifications();
 };

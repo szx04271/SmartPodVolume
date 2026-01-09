@@ -68,7 +68,7 @@ BOOL CSmartPodVolumeDlg::OnInitDialog() {
 		spdlog::info(L"RegisterDeviceNotificationW succeeded. Listening for device changes.");
 	}
 
-	RegisterVolumeNotification();
+	RegisterVolumeNotificationsForAll();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返��?TRUE
 }
@@ -135,7 +135,7 @@ void CSmartPodVolumeDlg::OnDestroy() {
 		spdlog::info(L"Unregistered device notification.");
 	}
 
-	UnregisterVolumeNotification();
+	UnregisterAllVolumeNotifications();
 	spdlog::info(L"Unregistered volume notification.");
 }
 
@@ -161,40 +161,20 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
 
-void CSmartPodVolumeDlg::RegisterVolumeNotification() {
-	auto j = utils::GetConfigJson();
-	if (j.is_null()) {
+void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device) {
+	LPWSTR _rawId;
+	HRESULT hr = device->GetId(&_rawId);
+	if (FAILED(hr)) {
+		spdlog::error(L"Error getting mmDevice id");
 		return;
 	}
 
-	auto deviceCollection = utils::GetMmDeviceCollection();
-	if (!deviceCollection) {
+	// automatically frees COM string when return
+	std::unique_ptr<WCHAR, std::function<void(WCHAR*)>> id(_rawId, [](WCHAR* ptr) {CoTaskMemFree(ptr); });
+
+	auto j = utils::GetConfigJson(); // TODO: optimize this to avoid reading disk too frequently
+	if (j.is_null()) {
 		return;
-	}
-	UINT deviceCount = 0;
-	deviceCollection->GetCount(&deviceCount);
-	if (deviceCount == 0) {
-		return;
-	}
-	//                               interface             ID
-	using DeviceAndId = std::pair<CComPtr<IMMDevice>, std::wstring>;
-	std::list<DeviceAndId> deviceList;
-	HRESULT hr = S_OK;
-	for (UINT i = 0; i < deviceCount; ++i) {
-		CComPtr<IMMDevice> device;
-		hr = deviceCollection->Item(i, &device);
-		if (FAILED(hr)) {
-			spdlog::warn(L"Error getting interface of {}th(begin from 0) item of IMMDeviceCollection. Skip.", i);
-			continue;
-		}
-		LPWSTR id;
-		hr = device->GetId(&id);
-		if (FAILED(hr)) {
-			spdlog::warn(L"Error getting id of {}th(begin from 0) IMMDevice. Skip.", i);
-			continue;
-		}
-		deviceList.emplace_back(std::move(device), id);
-		CoTaskMemFree(id);
 	}
 
 	auto itList = j.find(conf_key::WHITELIST);
@@ -204,51 +184,73 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification() {
 	for (auto& deviceJson : *itList) {
 		auto itId = deviceJson.find(conf_key::MMDEVICE_ID);
 		if (itId == deviceJson.end() || !itId->is_string()) continue;
-		for (auto& device : deviceList) {
-			auto idInConfig = utils::U8ToWc(itId->get<std::string>());
-			if (!_wcsicmp(device.second.c_str(), idInConfig.c_str())) {
-				// found dest device
-				CComPtr<IAudioEndpointVolume> endpointVolume;
-				hr = utils::QueryVolumeController(device.first, &endpointVolume);
-				if (FAILED(hr)) {
-					spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
-					continue;
-				}
-
-				MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(device.second);
-				hr = endpointVolume->RegisterControlChangeNotify(callback);
-				if (FAILED(hr)) {
-					spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
-						device.second.c_str(), hr);
-					callback->Release();
-					continue;
-				}
-
-				float volume = 0;
-				BOOL mute = FALSE;
-				hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
-				if (FAILED(hr)) {
-					spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
-						device.second.c_str(), hr);
-				}
-				hr = endpointVolume->GetMute(&mute);
-				if (FAILED(hr)) {
-					spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
-						device.second.c_str(), hr);
-				}
-
-				// registration success
-				RegisteredDevice registeredDevice = {
-					endpointVolume,callback,volume / 100.f,mute
-				};
-				m_registeredCallbacks.emplace_back(std::move(registeredDevice));
-				spdlog::info(L"Successfully registered volume change notify for id={}", device.second);
+		auto idInConfig = utils::U8ToWc(itId->get<std::string>());
+		if (!_wcsicmp(id.get(), idInConfig.c_str())) {
+			// found dest device
+			CComPtr<IAudioEndpointVolume> endpointVolume;
+			hr = utils::QueryVolumeController(device, &endpointVolume);
+			if (FAILED(hr)) {
+				spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
+				continue;
 			}
+
+			MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(id.get());
+			hr = endpointVolume->RegisterControlChangeNotify(callback);
+			if (FAILED(hr)) {
+				spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
+					id.get(), hr);
+				callback->Release();
+				continue;
+			}
+
+			float volume = 0;
+			BOOL mute = FALSE;
+			hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
+			if (FAILED(hr)) {
+				spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
+					id.get(), hr);
+			}
+			hr = endpointVolume->GetMute(&mute);
+			if (FAILED(hr)) {
+				spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
+					id.get(), hr);
+			}
+
+			// registration success
+			RegisteredDevice registeredDevice = {
+				endpointVolume,callback,volume / 100.f,mute
+			};
+			m_registeredCallbacks.emplace_back(std::move(registeredDevice));
+			spdlog::info(L"Successfully registered volume change notify for id={}", id.get());
 		}
 	}
 }
 
-void CSmartPodVolumeDlg::UnregisterVolumeNotification() {
+void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAll() {
+	auto deviceCollection = utils::GetMmDeviceCollection();
+	if (!deviceCollection) {
+		return;
+	}
+	UINT deviceCount = 0;
+	deviceCollection->GetCount(&deviceCount);
+	if (deviceCount == 0) {
+		return;
+	}
+
+	HRESULT hr = S_OK;
+	for (UINT i = 0; i < deviceCount; ++i) {
+		CComPtr<IMMDevice> device;
+		hr = deviceCollection->Item(i, &device);
+		if (FAILED(hr)) {
+			spdlog::warn(L"Error getting interface of {}th(begin from 0) item of IMMDeviceCollection. Skip.", i);
+			continue;
+		}
+
+		RegisterVolumeNotification(device);
+	}
+}
+
+void CSmartPodVolumeDlg::UnregisterAllVolumeNotifications() {
 	for (auto& device : m_registeredCallbacks) {
 		device.endpointVolume->UnregisterControlChangeNotify(device.callback);
 		device.callback->Release();
@@ -303,69 +305,25 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 					spdlog::info("This device is in blacklist. Ignore.");
 					return;
 				}
+
+				json deviceJson = FindDeviceInList(conf_key::WHITELIST);
+				bool white = !deviceJson.is_null();
+
+				if (white) {
+					bool failBecauseInvalidConfig;
+					HRESULT hr = utils::ApplyConfiguredVolume(deviceJson, mmDevice, failBecauseInvalidConfig);
+
+					RegisterVolumeNotification(mmDevice);
+
+					if (!failBecauseInvalidConfig && FAILED(hr)) {
+						CVolumeSetFailDlg* setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
+						setFailDlg->Create(IDD_VOLUME_SET_FAIL);
+						setFailDlg->ShowWindow(SW_SHOWNORMAL);
+					}
+				}
 				else {
-					json deviceJson = FindDeviceInList(conf_key::WHITELIST);
-					bool white = !deviceJson.is_null();
-
-					if (white) {
-						HRESULT hr = S_OK;
-						CComPtr<IAudioEndpointVolume> endpointVol;
-						hr = utils::QueryVolumeController(mmDevice, &endpointVol);
-						if (FAILED(hr)) {
-							spdlog::error(L"QueryVolumeController failed with hr={}", hr);
-							return;
-						}
-
-						bool volumeConfigValid = false, muteConfigValid = false;
-						bool volumeSuccess = false, muteSuccess = false;
-
-						auto itVolume = deviceJson.find(conf_key::EXPECTED_VOLUME);
-						if (itVolume != deviceJson.end() && itVolume->is_number()) {
-							auto expectedVol = itVolume->get<float>();
-							if (0.f <= expectedVol && expectedVol <= 100.f) {
-								spdlog::info(L"Expected vol: {}%", expectedVol);
-								volumeConfigValid = true;
-								hr = endpointVol->SetMasterVolumeLevelScalar(expectedVol / 100.f, nullptr);
-							}
-						}
-						if (!volumeConfigValid) {
-							spdlog::info(L"FAILED to set volume (invalid config)");
-						}
-						else if (FAILED(hr)) {
-							spdlog::info(L"FAILED to set volume (hr={})", hr);
-						}
-						else {
-							spdlog::info(L"SUCCESSFULLY set volume");
-							volumeSuccess = true;
-						}
-
-						auto itMute = deviceJson.find(conf_key::MUTE);
-						if (itMute != deviceJson.end() && itMute->is_boolean()) {
-							muteConfigValid = true;
-							auto expectedMute = itMute->get<bool>();
-							hr = endpointVol->SetMute(expectedMute, nullptr);
-						}
-						if (!muteConfigValid) {
-							spdlog::info(L"FAILED to set mute (invalid config)");
-						}
-						else if (FAILED(hr)) {
-							spdlog::info(L"FAILED to set mute (hr={})", hr);
-						}
-						else {
-							spdlog::info(L"SUCCESSFULLY set mute");
-							muteSuccess = true;
-						}
-
-						if (!volumeSuccess || !muteSuccess) {
-							CVolumeSetFailDlg* setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
-							setFailDlg->Create(IDD_VOLUME_SET_FAIL);
-							setFailDlg->ShowWindow(SW_SHOWNORMAL);
-						}
-					}
-					else {
-						// this is a new device
-						NewMmDevice(*mmDeviceInfo);
-					}
+					// this is a new device
+					NewMmDevice(*mmDeviceInfo);
 				}
 			}
 			catch (std::exception& e) {
