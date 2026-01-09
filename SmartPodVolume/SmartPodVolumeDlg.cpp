@@ -146,7 +146,7 @@ void CSmartPodVolumeDlg::OnDestroy() {
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
 	utils::MmDeviceInfo info;
-	info.friendlyName = L"并夕夕耳机";
+	info.friendlyName = L"并夕夕￥9.9包邮耳机";
 	info.description = L"耳机";
 	info.id = L"{XXXXXXX}.{XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}";
 
@@ -231,6 +231,7 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification() {
 						continue;
 					}
 
+					
 					// registration success
 					RegisteredDevice registeredDevice = {
 						endpointVolume,callback
@@ -304,35 +305,58 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 					bool toRetry = white ? false : !((deviceJson = FindDeviceInList(conf_key::RETRYLIST)).is_null());
 
 					if (white || toRetry) {
-						bool configValid = false;
 						HRESULT hr = S_OK;
+						CComPtr<IAudioEndpointVolume> endpointVol;
+						hr = utils::QueryVolumeController(mmDevice, &endpointVol);
+						if (FAILED(hr)) {
+							spdlog::error(L"QueryVolumeController failed with hr={}", hr);
+							return;
+						}
+
+						bool volumeConfigValid = false, muteConfigValid = false;
+						bool volumeSuccess = false, muteSuccess = false;
 
 						auto itVolume = deviceJson.find(conf_key::EXPECTED_VOLUME);
-						if (itVolume != deviceJson.end() && itVolume->is_number_integer()) {
-							auto expectedVol = itVolume->get<int>();
-							if (0 <= expectedVol && expectedVol <= 100) {
+						if (itVolume != deviceJson.end() && itVolume->is_number()) {
+							auto expectedVol = itVolume->get<float>();
+							if (0.f <= expectedVol && expectedVol <= 100.f) {
 								spdlog::info(L"Expected vol: {}%", expectedVol);
-								configValid = true;
-								hr = utils::SetDeviceVolume(mmDevice, expectedVol);
+								volumeConfigValid = true;
+								hr = endpointVol->SetMasterVolumeLevelScalar(expectedVol / 100.f, nullptr);
 							}
 						}
-						
-						if (configValid) {
-							if (SUCCEEDED(hr)) {
-								spdlog::info(L"SUCCESSFULLY set volume");
-							}
-							else {
-								spdlog::error(L"FAILED to set volume (hr={})", hr);
-
-								// ask user if we should retry next time
-								CVolumeSetFailDlg *setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
-								setFailDlg->Create(IDD_VOLUME_SET_FAIL);
-								setFailDlg->ShowWindow(SW_SHOWNORMAL);
-							}
+						if (!volumeConfigValid) {
+							spdlog::info(L"FAILED to set volume (invalid config)");
+						}
+						else if (FAILED(hr)) {
+							spdlog::info(L"FAILED to set volume (hr={})", hr);
 						}
 						else {
-							spdlog::error(L"FAILED to set volume (invalid configuration)");
-							// TODO: tell user? or handle in other way?
+							spdlog::info(L"SUCCESSFULLY set volume");
+							volumeSuccess = true;
+						}
+
+						auto itMute = deviceJson.find(conf_key::MUTE);
+						if (itMute != deviceJson.end() && itMute->is_boolean()) {
+							muteConfigValid = true;
+							auto expectedMute = itMute->get<bool>();
+							hr = endpointVol->SetMute(expectedMute, nullptr);
+						}
+						if (!muteConfigValid) {
+							spdlog::info(L"FAILED to set mute (invalid config)");
+						}
+						else if (FAILED(hr)) {
+							spdlog::info(L"FAILED to set mute (hr={})", hr);
+						}
+						else {
+							spdlog::info(L"SUCCESSFULLY set mute");
+							muteSuccess = true;
+						}
+
+						if (!volumeSuccess || !muteSuccess) {
+							CVolumeSetFailDlg* setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
+							setFailDlg->Create(IDD_VOLUME_SET_FAIL);
+							setFailDlg->ShowWindow(SW_SHOWNORMAL);
 						}
 					}
 					else {

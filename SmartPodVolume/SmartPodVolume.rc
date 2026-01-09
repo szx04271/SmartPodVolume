@@ -108,9 +108,9 @@ FONT 9, "Microsoft YaHei UI", 400, 0, 0x0
 BEGIN
     PUSHBUTTON      "想(&Y)",IDYES,74,92,50,14
     DEFPUSHBUTTON   "不想(&N)",IDNO,130,92,50,14
-    LTEXT           "抱歉，此设备音量设置失败，请您先手动调整！",IDC_STATIC,7,7,145,8
+    LTEXT           "抱歉，此设备音量或静音设置失败，请您先手动调整！",IDC_STATIC,7,7,166,8
     CONTROL         "",IDC_DEVICE_INFO_REPORT,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,7,30,173,42
-    LTEXT           "请问您还想不想让以后该设备接入时本软件再次尝试调整音量？",IDC_STATIC,7,75,173,17
+    LTEXT           "请问您还想不想让以后该设备接入时本软件再次尝试调整音量和静音？",IDC_STATIC,7,75,173,17
     LTEXT           "ps: 选了不想，以后想反悔，把它从【设置向导】的【黑名单设备】里删除就好了~",IDC_TIP_STATIC,7,111,173,17
     LTEXT           "错误代码 (HRESULT): ",IDC_STATIC,7,18,69,8
     EDITTEXT        IDC_ERR_CODE_DISPLAY,77,16,103,12,ES_AUTOHSCROLL | ES_READONLY

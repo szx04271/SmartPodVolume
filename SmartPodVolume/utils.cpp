@@ -144,20 +144,7 @@ namespace utils {
 		return ret;
 	}
 
-	HRESULT SetDeviceVolume(CComPtr<IMMDevice> mmDevice, int volumePercent) noexcept {
-		if (volumePercent < 0 || volumePercent > 100) {
-			return E_INVALIDARG;
-		}
-
-		CComPtr<IAudioEndpointVolume> endpointVolume;
-		HRESULT hr = mmDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)&endpointVolume);
-		if (SUCCEEDED(hr)) {
-			hr = endpointVolume->SetMasterVolumeLevelScalar(volumePercent / 100.0f, nullptr);
-		}
-		return hr;
-	}
-
-	std::optional<utils::MmDeviceInfo> GetMmDeviceInfo(CComPtr<IMMDevice> mmDevice) noexcept {
+	std::optional<utils::MmDeviceInfo> GetMmDeviceInfo(IMMDevice *mmDevice) noexcept {
 		assert(mmDevice);
 
 		MmDeviceInfo ret;
@@ -169,7 +156,7 @@ namespace utils {
 			CoTaskMemFree(id);
 		}
 		else {
-			spdlog::error(L"Failed to query the ID of an MmDevice (interface pointer={:#x}). (What the fuck?)", (uintptr_t)mmDevice.p);
+			spdlog::error(L"Failed to query the ID of an MmDevice (interface pointer={:#x}). (What the fuck?)", (uintptr_t)mmDevice);
 			return std::nullopt; // if we can't get id, then other attributes are useless. 大败而归。
 		}
 

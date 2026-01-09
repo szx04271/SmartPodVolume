@@ -53,6 +53,8 @@ public:
 	{
 		CComPtr<IAudioEndpointVolume> endpointVolume;
 		MyVolumeChangeCallback* callback;
+		float volumePercent;
+		bool mute;
 	};
 	std::list<RegisteredDevice> m_registeredCallbacks;
 	void RegisterVolumeNotification();

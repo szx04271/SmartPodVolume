@@ -52,14 +52,14 @@ HBRUSH CVolumeSetFailDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 		pDC->SetTextColor(RGB(100, 100, 100));
 	}
 
-	// TODO:  如果默认的不是所需画笔，则返回另一个画笔
+	// 如果默认的不是所需画笔，则返回另一个画笔
 	return hbr;
 }
 
 BOOL CVolumeSetFailDlg::OnInitDialog() {
 	CDialog::OnInitDialog();
 
-	GetSystemMenu(FALSE)->EnableMenuItem(SC_CLOSE, MF_GRAYED | MF_BYCOMMAND); // TODO: block alt+f4
+	GetSystemMenu(FALSE)->EnableMenuItem(SC_CLOSE, MF_GRAYED | MF_BYCOMMAND);
 
 	m_deviceInfoReport.SetDeviceInfo(m_mmDeviceInfo);
 
