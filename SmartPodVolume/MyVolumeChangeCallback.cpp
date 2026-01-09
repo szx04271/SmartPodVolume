@@ -22,8 +22,9 @@ STDMETHODIMP_(ULONG) MyVolumeChangeCallback::Release() {
 	return ref_count;
 }
 
-HRESULT STDMETHODCALLTYPE MyVolumeChangeCallback::OnNotify(PAUDIO_VOLUME_NOTIFICATION_DATA pNotify) {
-	spdlog::info(L"[VOLCHANGED] id={} vol={}", m_deviceId, pNotify->fMasterVolume * 100.0f);
+HRESULT STDMETHODCALLTYPE MyVolumeChangeCallback::OnNotify(PAUDIO_VOLUME_NOTIFICATION_DATA pNotify) noexcept {
+	spdlog::info(L"[VOL or MUTE CHANGED] id={} vol={} mute={}", m_deviceId, pNotify->fMasterVolume * 100.0f,
+		pNotify->bMuted ? true : false);
 
 	return S_OK;
 }

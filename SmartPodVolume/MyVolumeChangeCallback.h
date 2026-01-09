@@ -16,9 +16,9 @@ public:
 	STDMETHOD_(ULONG, AddRef)() override;
 	STDMETHOD_(ULONG, Release)() override;
 
-    virtual HRESULT STDMETHODCALLTYPE OnNotify(PAUDIO_VOLUME_NOTIFICATION_DATA pNotify) override;
+    virtual HRESULT STDMETHODCALLTYPE OnNotify(PAUDIO_VOLUME_NOTIFICATION_DATA pNotify) noexcept override;
 
-    std::wstring GetDeviceId() const {
+    std::wstring GetDeviceId() const noexcept {
         return m_deviceId;
     }
 };

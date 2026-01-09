@@ -216,7 +216,7 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification() {
 				if (!_wcsicmp(device.second.c_str(), idInConfig.c_str())) {
 					// found dest device
 					CComPtr<IAudioEndpointVolume> endpointVolume;
-					hr = device.first->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, nullptr, (void**)&endpointVolume);
+					hr = utils::QueryVolumeController(device.first, &endpointVolume);
 					if (FAILED(hr)) {
 						spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
 						continue;
@@ -231,10 +231,22 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification() {
 						continue;
 					}
 
-					
+					float volume = 0;
+					BOOL mute = FALSE;
+					hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
+					if (FAILED(hr)) {
+						spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
+							device.second.c_str(), hr);
+					}
+					hr = endpointVolume->GetMute(&mute);
+					if (FAILED(hr)) {
+						spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
+							device.second.c_str(), hr);
+					}
+
 					// registration success
 					RegisteredDevice registeredDevice = {
-						endpointVolume,callback
+						endpointVolume,callback,volume/100.f,mute
 					};
 					m_registeredCallbacks.emplace_back(std::move(registeredDevice));
 					spdlog::info(L"Successfully registered volume change notify for id={}", device.second);

@@ -26,9 +26,10 @@
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="友好名称" Width="100" />
+                            <GridViewColumn Header="静音" Width="30" />
                             <GridViewColumn Header="期望音量(%)" Width="70" />
-                            <GridViewColumn Header="描述" Width="70" />
-                            <GridViewColumn Header="MM设备ID" Width="100" />
+                            <GridViewColumn Header="描述" Width="60" />
+                            <GridViewColumn Header="MM设备ID" Width="80" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -49,9 +50,10 @@
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="友好名称" Width="100" />
+                            <GridViewColumn Header="静音" Width="30" />
                             <GridViewColumn Header="期望音量(%)" Width="70" />
-                            <GridViewColumn Header="描述" Width="70" />
-                            <GridViewColumn Header="MM设备ID" Width="100" />
+                            <GridViewColumn Header="描述" Width="60" />
+                            <GridViewColumn Header="MM设备ID" Width="80" />
                         </GridView>
                     </ListView.View>
                 </ListView>
