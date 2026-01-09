@@ -68,4 +68,11 @@ namespace utils {
 	// If this fails, it directly writing error messages into log.
 	// If this sets isConfigInvalid to true, don't check the returned HRESULT.
 	HRESULT ApplyConfiguredVolume(const json& deviceJson, IMMDevice* device, /* out */ bool& isConfigInvalid) noexcept;
+
+	struct CoTaskMemDeleter {
+		void operator()(LPVOID ptr) const noexcept {
+			CoTaskMemFree(ptr);
+		}
+	};
+	template<typename T> using UniqueCoTaskPtr = std::unique_ptr<T, CoTaskMemDeleter>;
 }

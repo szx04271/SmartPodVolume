@@ -37,13 +37,15 @@ protected:
 public:
 	afx_msg BOOL OnDeviceChange(UINT nEventType, DWORD_PTR dwData);
 
-	void DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
-	void NewMmDevice(const utils::MmDeviceInfo& info) {
+	void OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
+	void OnNewMmDevice(const utils::MmDeviceInfo& info) {
 		spdlog::info(L"This is a new device. Asking user for choice.");
 		auto newDeviceDlg = new CNewDeviceDlg(info);
 		newDeviceDlg->Create(IDD_NEW_DEVICE);
 		newDeviceDlg->ShowWindow(SW_SHOWNORMAL);
 	}
+
+	void OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
 
 	afx_msg void OnDestroy();
 	afx_msg void OnBnClickedDisplayNewDeviceDialog();
@@ -55,9 +57,11 @@ public:
 		MyVolumeChangeCallback* callback;
 		float volumePercent;
 		bool mute;
+		std::wstring mmDeviceId;
+		std::list<std::wstring> fromDevInfIds;
 	};
 	std::list<RegisteredDevice> m_registeredCallbacks;
-	void RegisterVolumeNotification(IMMDevice* device);
-	void RegisterVolumeNotificationsForAll();
+	void RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId);
+	void RegisterVolumeNotificationsForAllKnown();
 	void UnregisterAllVolumeNotifications();
 };

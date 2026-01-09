@@ -68,7 +68,7 @@ BOOL CSmartPodVolumeDlg::OnInitDialog() {
 		spdlog::info(L"RegisterDeviceNotificationW succeeded. Listening for device changes.");
 	}
 
-	RegisterVolumeNotificationsForAll();
+	RegisterVolumeNotificationsForAllKnown();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返��?TRUE
 }
@@ -116,14 +116,24 @@ HCURSOR CSmartPodVolumeDlg::OnQueryDragIcon() {
 // 这两种方式在此方面的差异。
 
 BOOL CSmartPodVolumeDlg::OnDeviceChange(UINT nEventType, DWORD_PTR dwData) {
-	spdlog::info("OnDevicechange eventType={} data={}", nEventType, dwData);
+	spdlog::debug("OnDevicechange eventType={} data={}", nEventType, dwData);
 
-	if (nEventType == DBT_DEVICEARRIVAL) {
-		PDEV_BROADCAST_HDR pHdr = reinterpret_cast<PDEV_BROADCAST_HDR>(dwData);
+	PDEV_BROADCAST_HDR pHdr = reinterpret_cast<PDEV_BROADCAST_HDR>(dwData);
+	if (pHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
 		PDEV_BROADCAST_DEVICEINTERFACE_W pDevInf = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE_W>(pHdr);
-		DeviceArrived(pDevInf);
+		if (nEventType == DBT_DEVICEARRIVAL) {
+			OnDeviceArrived(pDevInf);
+		}
+		else if (nEventType == DBT_DEVICEREMOVECOMPLETE) {
+			OnDeviceRemoved(pDevInf);
+		}
 	}
+
 	return TRUE;
+}
+
+void CSmartPodVolumeDlg::OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
+
 }
 
 void CSmartPodVolumeDlg::OnDestroy() {
@@ -161,7 +171,7 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
 
-void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device) {
+void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId) {
 	LPWSTR _rawId;
 	HRESULT hr = device->GetId(&_rawId);
 	if (FAILED(hr)) {
@@ -171,6 +181,108 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device) {
 
 	// automatically frees COM string when return
 	std::unique_ptr<WCHAR, std::function<void(WCHAR*)>> id(_rawId, [](WCHAR* ptr) {CoTaskMemFree(ptr); });
+
+	RegisteredDevice* thisDevice = nullptr;
+	for (auto& registeredDevice : m_registeredCallbacks) {
+		if (_wcsicmp(registeredDevice.mmDeviceId.c_str(), id.get()) == 0) {
+			// already registered, only append fromDevInfIds and return
+			thisDevice = &registeredDevice;
+			break;
+		}
+	}
+
+	if (!thisDevice) {
+		// only register if not alerady registered
+
+		CComPtr<IAudioEndpointVolume> endpointVolume;
+		hr = utils::QueryVolumeController(device, &endpointVolume);
+		if (FAILED(hr)) {
+			spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
+			return;
+		}
+
+		MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(id.get());
+		hr = endpointVolume->RegisterControlChangeNotify(callback);
+		if (FAILED(hr)) {
+			spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
+				id.get(), hr);
+			callback->Release();
+			return;
+		}
+
+		float volume = 0;
+		BOOL mute = FALSE;
+		hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
+		if (FAILED(hr)) {
+			spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
+				id.get(), hr);
+		}
+		hr = endpointVolume->GetMute(&mute);
+		if (FAILED(hr)) {
+			spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
+				id.get(), hr);
+		}
+
+		// registration success
+		RegisteredDevice registeredDevice = {
+			endpointVolume,callback,volume / 100.f,mute,id.get()
+		};
+		thisDevice = &m_registeredCallbacks.emplace_back(std::move(registeredDevice));
+		spdlog::info(L"Successfully registered volume change notify for id={}", id.get());
+	}
+
+	thisDevice->fromDevInfIds.emplace_back(fromDevInfId);
+	spdlog::info(L"Added devInfId {} to registered device whose mmDeviceId is {}", fromDevInfId.data(), id.get());
+}
+
+void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
+	auto deviceCollection = utils::GetMmDeviceCollection();
+	if (!deviceCollection) {
+		return;
+	}
+	UINT deviceCount = 0;
+	deviceCollection->GetCount(&deviceCount);
+	if (deviceCount == 0) {
+		return;
+	}
+
+	struct MmDeviceAndId {
+		CComPtr<IMMDevice> device;
+		utils::UniqueCoTaskPtr<WCHAR> id;
+	};
+	std::list<MmDeviceAndId> connectedMmDevices;
+
+	HRESULT hr = S_OK;
+	for (UINT i = 0; i < deviceCount; ++i) {
+		CComPtr<IMMDevice> device;
+		hr = deviceCollection->Item(i, &device);
+		if (FAILED(hr)) {
+			spdlog::warn(L"Error getting interface of {}th(begin from 0) item of IMMDeviceCollection. Skip.", i);
+			continue;
+		}
+
+		LPWSTR _rawId;
+		hr = device->GetId(&_rawId);
+		if (FAILED(hr)) {
+			spdlog::warn(L"Error getting id of mmdevice interface {}", (uintptr_t)device.p);
+			continue;
+		}
+
+		CComPtr<IPropertyStore> propStore;
+		device->OpenPropertyStore(STGM_READ, &propStore);
+		PROPVARIANT pv;
+		hr = propStore->GetValue(PKEY_Device_ContainerId, &pv);
+		if (SUCCEEDED(hr) && pv.vt == VT_CLSID) {
+			spdlog::info(L"[MYDEBUG] CONTAINER ID = {}", utils::GuidToStringW(*pv.puuid));
+		}
+		else {
+			spdlog::info(L"[MYDEBUG] CONTAINER ID FAIL");
+		}
+		PropVariantClear(&pv);
+
+		// TODO: 明天把这坨屎改了
+		connectedMmDevices.emplace_back(MmDeviceAndId{std::move(device), utils::UniqueCoTaskPtr<WCHAR>(_rawId)});
+	}
 
 	auto j = utils::GetConfigJson(); // TODO: optimize this to avoid reading disk too frequently
 	if (j.is_null()) {
@@ -185,68 +297,14 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device) {
 		auto itId = deviceJson.find(conf_key::MMDEVICE_ID);
 		if (itId == deviceJson.end() || !itId->is_string()) continue;
 		auto idInConfig = utils::U8ToWc(itId->get<std::string>());
-		if (!_wcsicmp(id.get(), idInConfig.c_str())) {
-			// found dest device
-			CComPtr<IAudioEndpointVolume> endpointVolume;
-			hr = utils::QueryVolumeController(device, &endpointVolume);
-			if (FAILED(hr)) {
-				spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
-				continue;
+		for (auto& connectedMmDevice : connectedMmDevices) {
+			if (!_wcsicmp(connectedMmDevice.id.get(), idInConfig.c_str())) {
+				// found dest device
+				// register here
+				RegisterVolumeNotification(connectedMmDevice.device, L"TODO");
+				// 妈的这里怎么搞到devInfId啊，真操蛋
 			}
-
-			MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(id.get());
-			hr = endpointVolume->RegisterControlChangeNotify(callback);
-			if (FAILED(hr)) {
-				spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
-					id.get(), hr);
-				callback->Release();
-				continue;
-			}
-
-			float volume = 0;
-			BOOL mute = FALSE;
-			hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
-			if (FAILED(hr)) {
-				spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
-					id.get(), hr);
-			}
-			hr = endpointVolume->GetMute(&mute);
-			if (FAILED(hr)) {
-				spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
-					id.get(), hr);
-			}
-
-			// registration success
-			RegisteredDevice registeredDevice = {
-				endpointVolume,callback,volume / 100.f,mute
-			};
-			m_registeredCallbacks.emplace_back(std::move(registeredDevice));
-			spdlog::info(L"Successfully registered volume change notify for id={}", id.get());
 		}
-	}
-}
-
-void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAll() {
-	auto deviceCollection = utils::GetMmDeviceCollection();
-	if (!deviceCollection) {
-		return;
-	}
-	UINT deviceCount = 0;
-	deviceCollection->GetCount(&deviceCount);
-	if (deviceCount == 0) {
-		return;
-	}
-
-	HRESULT hr = S_OK;
-	for (UINT i = 0; i < deviceCount; ++i) {
-		CComPtr<IMMDevice> device;
-		hr = deviceCollection->Item(i, &device);
-		if (FAILED(hr)) {
-			spdlog::warn(L"Error getting interface of {}th(begin from 0) item of IMMDeviceCollection. Skip.", i);
-			continue;
-		}
-
-		RegisterVolumeNotification(device);
 	}
 }
 
@@ -257,7 +315,7 @@ void CSmartPodVolumeDlg::UnregisterAllVolumeNotifications() {
 	}
 }
 
-void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
+void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
 	// devInf->dbcc_classguid是设备接口类GUID，不是设备安装类GUID，不能直接传给SetupDiGetClassDescriptionW
 
 	auto diInfo = utils::GetDeviceInterfaceInfoFromPath(devInf->dbcc_name);
@@ -280,7 +338,7 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 			try {
 				auto j = utils::GetConfigJson();
 				if (j.is_null()) {
-					NewMmDevice(*mmDeviceInfo);
+					OnNewMmDevice(*mmDeviceInfo);
 					return;
 				}
 
@@ -313,7 +371,7 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 					bool failBecauseInvalidConfig;
 					HRESULT hr = utils::ApplyConfiguredVolume(deviceJson, mmDevice, failBecauseInvalidConfig);
 
-					RegisterVolumeNotification(mmDevice);
+					RegisterVolumeNotification(mmDevice, diInfo.deviceInstanceId);
 
 					if (!failBecauseInvalidConfig && FAILED(hr)) {
 						CVolumeSetFailDlg* setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
@@ -323,7 +381,7 @@ void CSmartPodVolumeDlg::DeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) 
 				}
 				else {
 					// this is a new device
-					NewMmDevice(*mmDeviceInfo);
+					OnNewMmDevice(*mmDeviceInfo);
 				}
 			}
 			catch (std::exception& e) {
