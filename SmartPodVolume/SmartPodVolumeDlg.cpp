@@ -12,6 +12,8 @@
 #include "constants.h"
 
 
+// MFC's DEBUG_NEW itself causes bugs. 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -38,6 +40,8 @@ BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_WM_DEVICECHANGE()
 	ON_BN_CLICKED(IDC_DISPLAY_NEW_DEVICE_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog)
 	ON_BN_CLICKED(IDC_DISPLAY_VOLUME_SET_FAIL_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog)
+	ON_MESSAGE(WM_REGISTERED_DEVICE_VOLUME_CHANGED, &CSmartPodVolumeDlg::OnRegisteredDeviceVolumeChanged)
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -168,6 +172,8 @@ void CSmartPodVolumeDlg::OnDestroy() {
 
 	UnregisterAllVolumeNotifications();
 	spdlog::info(L"Unregistered volume notification.");
+
+	SaveAllVolumes();
 }
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
@@ -231,6 +237,8 @@ CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotifica
 			return nullptr;
 		}
 
+		// registration success
+
 		float volume = 0;
 		BOOL mute = FALSE;
 		hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
@@ -244,12 +252,18 @@ CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotifica
 				id.get(), hr);
 		}
 
-		// registration success
+		callback->m_volumeInfo.volumePercent = volume * 100.f;
+		callback->m_volumeInfo.mute = mute ? true : false;
+
 		RegisteredDevice registeredDevice = {
-			endpointVolume,callback,volume / 100.f,mute,id.get()
+			endpointVolume,callback,id.get()
 		};
 		thisDevice = &m_registeredCallbacks.emplace_back(std::move(registeredDevice));
 		spdlog::info(L"Successfully registered volume change notify for id={}", id.get());
+
+		m_volumesToBeSaved[callback->GetLowercaseDeviceId()] = callback->m_volumeInfo;
+		SaveAllVolumes();
+		//SendMessageW(WM_REGISTERED_DEVICE_VOLUME_CHANGED, (WPARAM)&callback, 0);
 	}
 
 	thisDevice->fromDevInfIds.emplace_back(fromDevInfId);
@@ -306,31 +320,33 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 		connectedMmDevices.emplace_back(std::move(device), utils::UniqueCoTaskPtr<WCHAR>(_rawId));
 	}
 
-	auto j = utils::GetConfigJson(); // TODO: optimize this to avoid reading disk too frequently
-	if (j.is_null()) {
-		return;
-	}
+	try {
+		auto j = utils::GetConfigJson(); // TODO: optimize this to avoid reading disk too frequently
+		if (!j.is_object()) {
+			return;
+		}
 
-	auto itList = j.find(conf_key::WHITELIST);
-	if (itList == j.end() || !itList->is_array()) {
-		return;
-	}
-	for (auto& deviceJson : *itList) {
-		auto itId = deviceJson.find(conf_key::MMDEVICE_ID);
-		if (itId == deviceJson.end() || !itId->is_string()) continue;
-		auto idInConfig = utils::U8ToWc(itId->get<std::string>());
-		for (auto& connectedMmDevice : connectedMmDevices) {
-			if (!_wcsicmp(connectedMmDevice.id.get(), idInConfig.c_str())) {
-				// found dest device
-				// register here
-				auto fullId = utils::MmDeviceIdToFullPnpId(connectedMmDevice.id.get());
-				auto registeredDevice = RegisterVolumeNotification(connectedMmDevice.device, fullId);
-				if (registeredDevice) {
-					auto ancestors = utils::GetAncestorDeviceIds(fullId);
-					registeredDevice->fromDevInfIds.splice(registeredDevice->fromDevInfIds.end(), ancestors);
+		auto& whiteListJson = j[conf_key::WHITELIST];
+		for (auto& [deviceId, deviceInfo] : whiteListJson.items()) {
+			for (auto& connectedMmDevice : connectedMmDevices) {
+				if (utils::ConfKeyizeId(connectedMmDevice.id.get()) == deviceId) {
+					// found dest device
+					// register here
+					auto fullId = utils::MmDeviceIdToFullPnpId(connectedMmDevice.id.get());
+					auto registeredDevice = RegisterVolumeNotification(connectedMmDevice.device, fullId);
+					if (registeredDevice) {
+						auto ancestors = utils::GetAncestorDeviceIds(fullId);
+						registeredDevice->fromDevInfIds.splice(registeredDevice->fromDevInfIds.end(), ancestors);
+					}
 				}
 			}
 		}
+	}
+	catch (std::exception& e) {
+		spdlog::error(L"RegisterVolumeNotificationsForAllKnown error ({})", utils::AcpToWc(e.what()));
+	}
+	catch (...) {
+		spdlog::error(L"RegisterVolumeNotificationsForAllKnown error (unknown error)");
 	}
 }
 
@@ -363,26 +379,18 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 			// lookup all known mmDevices
 			try {
 				auto j = utils::GetConfigJson();
-				if (j.is_null()) {
+				if (!j.is_object()) {
 					OnNewMmDevice(*mmDeviceInfo);
 					return;
 				}
 
 				auto FindDeviceInList = [&j, &mmDeviceInfo](const char* listKey) -> json {
-					auto itList = j.find(listKey);
-					if (itList != j.end() && itList->is_array()) {
-						for (auto& deviceInList : *itList) {
-							auto itId = deviceInList.find(conf_key::MMDEVICE_ID);
-							if (itId != deviceInList.end() && itId->is_string()) {
-								auto id = utils::U8ToWc(itId->get<std::string>());
-								if (!_wcsicmp(id.c_str(), mmDeviceInfo->id.c_str())) {
-									return deviceInList;
-								}
-							}
-						}
+					auto& listJson = j[listKey];
+					if (!listJson.is_object()) {
+						return json();
 					}
-
-					return json();
+					auto& deviceJson = listJson[utils::ConfKeyizeId(mmDeviceInfo->id)];
+					return deviceJson.is_object() ? deviceJson : json();
 				};
 
 				if (!FindDeviceInList(conf_key::BLACKLIST).is_null()) {
@@ -420,7 +428,65 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 		else {
 			spdlog::warn(L"Discovered MMDevice but no info. WTF?");
 		}
+	}
+}
 
+afx_msg LRESULT CSmartPodVolumeDlg::OnRegisteredDeviceVolumeChanged(WPARAM wParam, LPARAM lParam) {
+	if (!wParam) {
+		spdlog::error(L"OnRegisteredDeviceVolumeChanged finds wParam is zero... BUG!");
+		return 114514;
+	}
 
+	auto callback = (MyVolumeChangeCallback*)wParam;
+	m_volumesToBeSaved[callback->GetLowercaseDeviceId()] = callback->m_volumeInfo;
+	SetTimer(AUTO_SAVE_CONFIG_TIMER_ID, 10000, nullptr); // this resets the timer before sets it
+
+	return 0;
+}
+
+void CSmartPodVolumeDlg::OnTimer(UINT_PTR nIDEvent) {
+	if (nIDEvent == AUTO_SAVE_CONFIG_TIMER_ID) {
+		if (SaveAllVolumes()) {
+			// if all successfully saved, kill the timer
+			KillTimer(AUTO_SAVE_CONFIG_TIMER_ID);
+		}
+	}
+
+	CDialog::OnTimer(nIDEvent);
+}
+
+bool CSmartPodVolumeDlg::SaveAllVolumes() noexcept {
+	try {
+		auto configJson = utils::GetConfigJson();
+
+		auto& whiteList = configJson[conf_key::WHITELIST];
+		if (whiteList.is_object() == false) {
+			whiteList = {}; // empty object
+		}
+
+		for (auto& [wcId, info] : m_volumesToBeSaved) {
+			auto id = utils::ConfKeyizeId(wcId);
+			auto& deviceJson = whiteList[id];
+			if (!deviceJson.is_object()) {
+				deviceJson = {};
+			}
+			deviceJson[conf_key::EXPECTED_VOLUME] = info.volumePercent;
+			deviceJson[conf_key::MUTE] = info.mute;
+		}
+
+		auto configString = configJson.dump();
+		auto writeSuccess = utils::WriteConfigFile(configString);
+		if (!writeSuccess) {
+			spdlog::error(L"Auto save config failed. Try again 10 seconds later.");
+		}
+		return writeSuccess;
+	}
+	catch (std::exception& e) {
+		spdlog::error(L"SaveAllVolumes error: {}", utils::AcpToWc(e.what()));
+		return false;
+	}
+	catch (...) {
+		spdlog::error(L"SaveAllVolumes error (unknown error)");
+		return false;
 	}
 }

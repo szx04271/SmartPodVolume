@@ -83,4 +83,26 @@ namespace utils {
 	inline std::wstring MmDeviceIdToFullPnpId(std::wstring_view mmDeviceId) noexcept {
 		return L"SWD\\MMDEVAPI\\" + std::wstring(mmDeviceId);
 	}
+
+	inline std::wstring WStringLower(std::wstring_view str) noexcept {
+		if (str.empty()) {
+			return std::wstring();
+		}
+		std::wstring ret(str.length(), L'\0');
+		std::transform(str.begin(), str.end(), ret.begin(), towlower);
+		return ret;
+	}
+
+	using LowercaseIdType = std::wstring;
+
+	// 把UTF-16大小写混合ID转换成UTF-8全小写ID (配置文件中的存储格式)
+	inline std::string ConfKeyizeId(std::wstring_view rawId) noexcept {
+		return WcToU8(WStringLower(rawId));
+	}
+
+	bool WriteConfigFile(std::string_view configString) noexcept;
+
 }
+
+#define __TO_WIDE(x) L ## x
+#define __WFUNCTION__ __TO_WIDE(__FUNCTION__)

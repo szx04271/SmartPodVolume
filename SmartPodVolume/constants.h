@@ -10,6 +10,12 @@ namespace conf_key {
 	inline constexpr const char* FRIENDLY_NAME = "friendly_name"; // string
 	inline constexpr const char* EXPECTED_VOLUME = "expected_vol"; // float
 	inline constexpr const char* DESCRIPTION = "description"; // string
-	inline constexpr const char* MMDEVICE_ID = "mmdevice_id"; // string
 	inline constexpr const char* MUTE = "mute"; // bool
 }
+
+enum CustomWindowMessages {
+	// wParam: MyVolumeChangeCallback*
+	// lParam: unused
+	// return value: unused
+	WM_REGISTERED_DEVICE_VOLUME_CHANGED = WM_USER + 67
+};

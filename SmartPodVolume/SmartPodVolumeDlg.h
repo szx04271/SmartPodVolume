@@ -36,6 +36,7 @@ protected:
 	
 public:
 	afx_msg BOOL OnDeviceChange(UINT nEventType, DWORD_PTR dwData);
+	afx_msg LRESULT OnRegisteredDeviceVolumeChanged(WPARAM wParam, LPARAM lParam);
 
 	void OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
 	void OnNewMmDevice(const utils::MmDeviceInfo& info) {
@@ -55,8 +56,6 @@ public:
 	{
 		CComPtr<IAudioEndpointVolume> endpointVolume;
 		MyVolumeChangeCallback* callback;
-		float volumePercent;
-		bool mute;
 		std::wstring mmDeviceId;
 		std::list<std::wstring> fromDevInfIds;
 	};
@@ -64,4 +63,11 @@ public:
 	RegisteredDevice* RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId);
 	void RegisterVolumeNotificationsForAllKnown();
 	void UnregisterAllVolumeNotifications();
+
+	std::map<utils::LowercaseIdType, MyVolumeChangeCallback::DeviceVolumeInfo> m_volumesToBeSaved;
+
+	static constexpr inline UINT_PTR AUTO_SAVE_CONFIG_TIMER_ID = 1;
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+
+	bool SaveAllVolumes() noexcept;
 };

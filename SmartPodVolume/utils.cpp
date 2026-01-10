@@ -382,4 +382,24 @@ namespace utils {
 		return volumeSuccess && muteSuccess ? S_OK : (SUCCEEDED(hr) ? hr2 : hr);
 	}
 
+	bool WriteConfigFile(std::string_view configString) noexcept {
+		FILE* file = nullptr;
+		auto err = _wfopen_s(&file, (GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str(), L"wb, ccs=UTF-8");
+		if (err) {
+			spdlog::error(L"Error opening config file for writing (errno={}).", err);
+			return false;
+		}
+
+		auto elemWritten = fwrite(configString.data(), configString.size(), 1, file);
+		if (elemWritten != 1) {
+			spdlog::error(L"Error writing config file ");
+			fclose(file);
+			return false;
+		}
+
+		spdlog::info(L"Successfully wrote config file.");
+		fclose(file);
+		return true;
+	}
+
 }
