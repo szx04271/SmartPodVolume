@@ -119,7 +119,7 @@ BOOL CSmartPodVolumeDlg::OnDeviceChange(UINT nEventType, DWORD_PTR dwData) {
 	spdlog::debug("OnDevicechange eventType={} data={}", nEventType, dwData);
 
 	PDEV_BROADCAST_HDR pHdr = reinterpret_cast<PDEV_BROADCAST_HDR>(dwData);
-	if (pHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+	if (pHdr && pHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
 		PDEV_BROADCAST_DEVICEINTERFACE_W pDevInf = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE_W>(pHdr);
 		if (nEventType == DBT_DEVICEARRIVAL) {
 			OnDeviceArrived(pDevInf);
@@ -133,7 +133,28 @@ BOOL CSmartPodVolumeDlg::OnDeviceChange(UINT nEventType, DWORD_PTR dwData) {
 }
 
 void CSmartPodVolumeDlg::OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
+	auto info = utils::GetDeviceInterfaceInfoFromPath(devInf->dbcc_name);
+	if (!info.deviceInstanceId.length()) {
+		spdlog::warn(L"A device with unknown id is removed. Ignored.");
+		return;
+	}
 
+	std::list<decltype(m_registeredCallbacks)::iterator> toBeRemoved;
+	for (auto it = m_registeredCallbacks.begin(); it != m_registeredCallbacks.end(); ++it) {
+		for (auto& derivedFromId : it->fromDevInfIds) {
+			if (!_wcsicmp(derivedFromId.c_str(), info.deviceInstanceId.c_str())) {
+				it->endpointVolume->UnregisterControlChangeNotify(it->callback);
+				// dont remove here, otherwise `it` becomes invalid and `++it` crushes
+				toBeRemoved.emplace_back(it);
+				spdlog::info(L"Registered device (id={}) is being unregistered because it or its ancestor is removed from computer.",
+					it->mmDeviceId);
+			}
+		}
+	}
+
+	for (auto& it : toBeRemoved) {
+		m_registeredCallbacks.erase(it); // this automatically calls Release() of any COM pointer inside
+	}
 }
 
 void CSmartPodVolumeDlg::OnDestroy() {
@@ -171,12 +192,12 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
 
-void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId) {
+CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId) {
 	LPWSTR _rawId;
 	HRESULT hr = device->GetId(&_rawId);
 	if (FAILED(hr)) {
 		spdlog::error(L"Error getting mmDevice id");
-		return;
+		return nullptr;
 	}
 
 	// automatically frees COM string when return
@@ -198,7 +219,7 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device, std::wstr
 		hr = utils::QueryVolumeController(device, &endpointVolume);
 		if (FAILED(hr)) {
 			spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
-			return;
+			return nullptr;
 		}
 
 		MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(id.get());
@@ -207,7 +228,7 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device, std::wstr
 			spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
 				id.get(), hr);
 			callback->Release();
-			return;
+			return nullptr;
 		}
 
 		float volume = 0;
@@ -232,7 +253,9 @@ void CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device, std::wstr
 	}
 
 	thisDevice->fromDevInfIds.emplace_back(fromDevInfId);
-	spdlog::info(L"Added devInfId {} to registered device whose mmDeviceId is {}", fromDevInfId.data(), id.get());
+	//spdlog::info(L"Added devInfId {} to registered device whose mmDeviceId is {}", fromDevInfId.data(), id.get());
+
+	return thisDevice;
 }
 
 void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
@@ -280,8 +303,7 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 		}
 		PropVariantClear(&pv);
 
-		// TODO: 明天把这坨屎改了
-		connectedMmDevices.emplace_back(MmDeviceAndId{std::move(device), utils::UniqueCoTaskPtr<WCHAR>(_rawId)});
+		connectedMmDevices.emplace_back(std::move(device), utils::UniqueCoTaskPtr<WCHAR>(_rawId));
 	}
 
 	auto j = utils::GetConfigJson(); // TODO: optimize this to avoid reading disk too frequently
@@ -301,8 +323,12 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 			if (!_wcsicmp(connectedMmDevice.id.get(), idInConfig.c_str())) {
 				// found dest device
 				// register here
-				RegisterVolumeNotification(connectedMmDevice.device, L"TODO");
-				// 妈的这里怎么搞到devInfId啊，真操蛋
+				auto fullId = utils::MmDeviceIdToFullPnpId(connectedMmDevice.id.get());
+				auto registeredDevice = RegisterVolumeNotification(connectedMmDevice.device, fullId);
+				if (registeredDevice) {
+					auto ancestors = utils::GetAncestorDeviceIds(fullId);
+					registeredDevice->fromDevInfIds.splice(registeredDevice->fromDevInfIds.end(), ancestors);
+				}
 			}
 		}
 	}

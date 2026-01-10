@@ -12,9 +12,11 @@ namespace utils {
 	};
 	DeviceInterfaceInfo GetDeviceInterfaceInfoFromPath(LPCWSTR devicePath) noexcept;
 
-	bool IsDeviceSameAsOrDescendantOf(LPCWSTR deviceInstanceId, LPCWSTR targetAncestorId) noexcept;
+	bool IsDeviceSameAsOrDescendantOf(std::wstring_view deviceInstanceId, std::wstring_view targetAncestorId) noexcept;
 
-	std::vector<CComPtr<IMMDevice>> FindAssociatedMmDevices(LPCWSTR deviceInstanceId) noexcept;
+	std::list<CComPtr<IMMDevice>> FindAssociatedMmDevices(LPCWSTR deviceInstanceId) noexcept;
+
+	std::list<std::wstring> GetAncestorDeviceIds(std::wstring_view fullPnpId) noexcept;
 
 	/* There can be more than one IMMDevice attached to one Device Interface (definition as mentioned above) */
 
@@ -40,7 +42,9 @@ namespace utils {
 
 	json GetConfigJson() noexcept;
 
+#if 0
 	CComPtr<IMMDevice> GetIMmDeviceById() noexcept;
+#endif
 
 	inline CComPtr<IMMDeviceCollection> GetMmDeviceCollection() noexcept {
 		HRESULT hr = S_OK;
@@ -75,4 +79,8 @@ namespace utils {
 		}
 	};
 	template<typename T> using UniqueCoTaskPtr = std::unique_ptr<T, CoTaskMemDeleter>;
+
+	inline std::wstring MmDeviceIdToFullPnpId(std::wstring_view mmDeviceId) noexcept {
+		return L"SWD\\MMDEVAPI\\" + std::wstring(mmDeviceId);
+	}
 }

@@ -61,7 +61,7 @@ public:
 		std::list<std::wstring> fromDevInfIds;
 	};
 	std::list<RegisteredDevice> m_registeredCallbacks;
-	void RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId);
+	RegisteredDevice* RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId);
 	void RegisterVolumeNotificationsForAllKnown();
 	void UnregisterAllVolumeNotifications();
 };

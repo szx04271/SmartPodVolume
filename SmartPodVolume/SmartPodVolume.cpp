@@ -63,7 +63,8 @@ BOOL CSmartPodVolumeApp::InitInstance()
 	if (FAILED(hr)) {
 		spdlog::error(L"CoInitializeEx failed: hr=0x{:08X}. Exiting.", hr);
 		::MessageBoxW(nullptr, L"初始化 COM 库失败，程序将退出。", L"SmartPodVolume 错误", MB_ICONERROR);
-		goto cleanup;
+		spdlog::info(L"SmartPodVolume ended.");
+		return FALSE;
 	}
 
 	m_pMainWnd = &dlg;

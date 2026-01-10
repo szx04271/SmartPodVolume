@@ -25,12 +25,16 @@ namespace utils {
 		DeviceInterfaceInfo ret;
 		PSP_DEVICE_INTERFACE_DETAIL_DATA_W detail = nullptr;
 		SP_DEVINFO_DATA devInfoData = {};
+		SP_DEVICE_INTERFACE_DATA deviceInterfaceData = {};
+		DWORD requiredSize = 0;
+		constexpr size_t BUF_CCH_LEN = 1024;
+		WCHAR classDesc[BUF_CCH_LEN] = {}, friendlyName[BUF_CCH_LEN], instanceId[BUF_CCH_LEN];
+
 		HDEVINFO hDevInfo = SetupDiCreateDeviceInfoList(nullptr, nullptr);
 		if (hDevInfo == INVALID_HANDLE_VALUE) {
 			return ret;
 		}
 
-		SP_DEVICE_INTERFACE_DATA deviceInterfaceData = {};
 		deviceInterfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
 
 		if (!SetupDiOpenDeviceInterfaceW(hDevInfo, devicePath, 0, &deviceInterfaceData)) {
@@ -38,7 +42,6 @@ namespace utils {
 		}
 
 		devInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
-		DWORD requiredSize = 0;
 		SetupDiGetDeviceInterfaceDetailW(hDevInfo, &deviceInterfaceData, nullptr, 0, &requiredSize, nullptr);
 		detail = (PSP_DEVICE_INTERFACE_DETAIL_DATA_W)malloc(requiredSize);
 		if (!detail) {
@@ -51,8 +54,6 @@ namespace utils {
 		}
 		ret.classGuid = GuidToStringW(devInfoData.ClassGuid);
 
-		constexpr size_t BUF_CCH_LEN = 1024;
-		WCHAR classDesc[BUF_CCH_LEN] = {}, friendlyName[BUF_CCH_LEN], instanceId[BUF_CCH_LEN];
 		if (SetupDiGetClassDescriptionW(&devInfoData.ClassGuid, classDesc, BUF_CCH_LEN, nullptr)) {
 			ret.classDescription = classDesc;
 		}
@@ -71,13 +72,13 @@ namespace utils {
 		return ret;
 	}
 
-	bool IsDeviceSameAsOrDescendantOf(LPCWSTR deviceInstanceId, LPCWSTR targetAncestorId) noexcept {
-		if (!_wcsicmp(deviceInstanceId, targetAncestorId)) {
+	bool IsDeviceSameAsOrDescendantOf(std::wstring_view deviceInstanceId, std::wstring_view targetAncestorId) noexcept {
+		if (!_wcsicmp(deviceInstanceId.data(), targetAncestorId.data())) {
 			return true;
 		}
 
 		DEVINST devInst = 0, parentInst = 0;
-		CONFIGRET cr = CM_Locate_DevNodeW(&devInst, (LPWSTR)deviceInstanceId, CM_LOCATE_DEVNODE_NORMAL);
+		CONFIGRET cr = CM_Locate_DevNodeW(&devInst, (LPWSTR)deviceInstanceId.data(), CM_LOCATE_DEVNODE_NORMAL);
 		if (cr != CR_SUCCESS) {
 			spdlog::error(L"CM_Locate_DevNodeW failed {}", cr);
 			return false;
@@ -87,7 +88,7 @@ namespace utils {
 			WCHAR parentId[512];
 			if (CM_Get_Device_IDW(parentInst, parentId, sizeof(parentId) / sizeof(WCHAR), 0) == CR_SUCCESS) {
 				spdlog::debug(L"parent id:{}", parentId);
-				if (_wcsicmp(parentId, targetAncestorId) == 0) {
+				if (_wcsicmp(parentId, targetAncestorId.data()) == 0) {
 					return true;
 				}
 			}
@@ -98,8 +99,8 @@ namespace utils {
 		return false;
 	}
 
-	std::vector<ATL::CComPtr<IMMDevice>> FindAssociatedMmDevices(LPCWSTR deviceInstanceId) noexcept {
-		std::vector<CComPtr<IMMDevice>> ret;
+	std::list<ATL::CComPtr<IMMDevice>> FindAssociatedMmDevices(LPCWSTR deviceInstanceId) noexcept {
+		std::list<CComPtr<IMMDevice>> ret;
 
 		CComPtr<IMMDeviceCollection> deviceCollection = GetMmDeviceCollection();
 		if (!deviceCollection) {
@@ -128,8 +129,7 @@ namespace utils {
 			}
 
 			spdlog::info(L"Checking: Its CoreAudio ID: {}; The PnP(SetupAPI) ID to match: {}", id, deviceInstanceId);
-			CStringW fullPnpId = L"SWD\\MMDEVAPI\\";
-			fullPnpId += id;
+			auto fullPnpId = MmDeviceIdToFullPnpId(id);
 			if (IsDeviceSameAsOrDescendantOf(fullPnpId, deviceInstanceId)) {
 				spdlog::info(L"Matched.");
 				ret.emplace_back(device);				
@@ -144,7 +144,29 @@ namespace utils {
 		return ret;
 	}
 
-	std::optional<utils::MmDeviceInfo> GetMmDeviceInfo(IMMDevice *mmDevice) noexcept {
+	std::list<std::wstring> GetAncestorDeviceIds(std::wstring_view fullPnpId) noexcept {
+		std::list<std::wstring> ret;
+
+		DEVINST devInst = 0, parentInst = 0;
+		CONFIGRET cr = CM_Locate_DevNodeW(&devInst, (LPWSTR)fullPnpId.data(), CM_LOCATE_DEVNODE_NORMAL);
+		if (cr != CR_SUCCESS) {
+			spdlog::error(L"CM_Locate_DevNodeW failed {}", cr);
+			return ret;
+		}
+
+		while (CM_Get_Parent(&parentInst, devInst, 0) == CR_SUCCESS) {
+			WCHAR parentId[512];
+			if (CM_Get_Device_IDW(parentInst, parentId, sizeof(parentId) / sizeof(WCHAR), 0) == CR_SUCCESS) {
+				ret.emplace_back(parentId);
+			}
+
+			devInst = parentInst;
+		}
+
+		return ret;
+	}
+
+	std::optional<utils::MmDeviceInfo> GetMmDeviceInfo(IMMDevice* mmDevice) noexcept {
 		assert(mmDevice);
 
 		MmDeviceInfo ret;
@@ -295,11 +317,13 @@ namespace utils {
 		return j;
 	}
 
+#if 0
 	ATL::CComPtr<IMMDevice> GetIMmDeviceById() noexcept {
 		// not implemented
 		assert(false);
 		return CComPtr<IMMDevice>();
 	}
+#endif
 
 	HRESULT ApplyConfiguredVolume(const json& deviceJson, IMMDevice* device, /* out */ bool& isConfigInvalid) noexcept {
 		isConfigInvalid = false;
