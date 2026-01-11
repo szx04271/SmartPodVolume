@@ -32,6 +32,7 @@
 #include <optional>
 #include <Uxtheme.h>
 #include <string_view>
+#include <set>
 
 #pragma comment(lib, "Rpcrt4.lib")
 #pragma comment(lib, "setupapi.lib")

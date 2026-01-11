@@ -32,4 +32,5 @@ public:
 	virtual BOOL OnInitDialog();
 	afx_msg void OnClose();
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	virtual void OnCancel();
 };

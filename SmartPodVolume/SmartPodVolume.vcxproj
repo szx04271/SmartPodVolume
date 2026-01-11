@@ -200,8 +200,6 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="MyVolumeChangeCallback.h" />
     <ClInclude Include="NewDeviceDlg.h" />
-    <ClInclude Include="nlohmann\json.hpp" />
-    <ClInclude Include="nlohmann\json_fwd.hpp" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SmartPodVolume.h" />

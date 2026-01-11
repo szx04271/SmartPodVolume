@@ -43,6 +43,7 @@ void CVolumeSetFailDlg::PostNcDestroy() {
 }
 
 void CVolumeSetFailDlg::OnOK() {
+	// intentionally kept empty
 }
 
 HBRUSH CVolumeSetFailDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
@@ -68,6 +69,7 @@ BOOL CVolumeSetFailDlg::OnInitDialog() {
 }
 
 void CVolumeSetFailDlg::OnClose() {
+	// intentionally kept empty
 }
 
 BOOL CVolumeSetFailDlg::PreTranslateMessage(MSG* pMsg) {
@@ -78,4 +80,8 @@ BOOL CVolumeSetFailDlg::PreTranslateMessage(MSG* pMsg) {
 	}
 
 	return CDialog::PreTranslateMessage(pMsg);
+}
+
+void CVolumeSetFailDlg::OnCancel() {
+	// intentionally kept empty
 }

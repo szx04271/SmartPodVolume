@@ -12,7 +12,6 @@
 #define IDC_TIP_STATIC                  1003
 #define IDC_DEVICE_INFO_REPORT          1004
 #define IDC_DISPLAY_VOLUME_SET_FAIL_DIALOG 1005
-#define IDC_EDIT1                       1006
 #define IDC_ERR_CODE_DISPLAY            1006
 
 // Next default values for new objects

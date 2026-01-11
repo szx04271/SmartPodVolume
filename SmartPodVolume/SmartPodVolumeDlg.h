@@ -39,11 +39,17 @@ public:
 	afx_msg LRESULT OnRegisteredDeviceVolumeChanged(WPARAM wParam, LPARAM lParam);
 
 	void OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
-	void OnNewMmDevice(const utils::MmDeviceInfo& info) {
-		spdlog::info(L"This is a new device. Asking user for choice.");
-		auto newDeviceDlg = new CNewDeviceDlg(info);
-		newDeviceDlg->Create(IDD_NEW_DEVICE);
-		newDeviceDlg->ShowWindow(SW_SHOWNORMAL);
+
+	// store this because
+	// (1) we want a NewDeviceDlg to close when its corresponding MmDevice is removed from computer
+	// (2) we don't want two NewDeviceDlg referencing to one MmDevice to appear simultaneously
+	std::map<utils::LowercaseIdType, CNewDeviceDlg*> m_newMmDeviceWindows;
+
+	void OnNewMmDevice(const utils::MmDeviceInfo& info, const CComPtr<IMMDevice>& device);
+
+	afx_msg LRESULT OnNewdevicedlgClosed(WPARAM wParam, LPARAM lParam) {
+		m_newMmDeviceWindows.erase(*(std::wstring*)wParam);
+		return 0;
 	}
 
 	void OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
@@ -56,13 +62,15 @@ public:
 	{
 		CComPtr<IAudioEndpointVolume> endpointVolume;
 		MyVolumeChangeCallback* callback;
-		std::wstring mmDeviceId;
-		std::list<std::wstring> fromDevInfIds;
 	};
-	std::list<RegisteredDevice> m_registeredCallbacks;
-	RegisteredDevice* RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId);
+	// key is mmDevice id in LOWERCASE
+	std::map<utils::LowercaseIdType, RegisteredDevice> m_registeredCallbacks;
+
+	RegisteredDevice* RegisterVolumeNotification(IMMDevice* device);
 	void RegisterVolumeNotificationsForAllKnown();
 	void UnregisterAllVolumeNotifications();
+
+	afx_msg LRESULT OnNewDeviceNeedsRegistration(WPARAM wParam, LPARAM lParam);
 
 	std::map<utils::LowercaseIdType, MyVolumeChangeCallback::DeviceVolumeInfo> m_volumesToBeSaved;
 
@@ -70,4 +78,5 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 
 	bool SaveAllVolumes() noexcept;
+	
 };

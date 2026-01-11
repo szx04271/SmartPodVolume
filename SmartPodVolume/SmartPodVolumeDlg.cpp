@@ -42,6 +42,8 @@ BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_BN_CLICKED(IDC_DISPLAY_VOLUME_SET_FAIL_DIALOG, &CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog)
 	ON_MESSAGE(WM_REGISTERED_DEVICE_VOLUME_CHANGED, &CSmartPodVolumeDlg::OnRegisteredDeviceVolumeChanged)
 	ON_WM_TIMER()
+	ON_MESSAGE(WM_NEWDEVICEDLG_CLOSED, &CSmartPodVolumeDlg::OnNewdevicedlgClosed)
+	ON_MESSAGE(WM_NEW_DEVICE_NEEDS_REGISTRATION, &CSmartPodVolumeDlg::OnNewDeviceNeedsRegistration)
 END_MESSAGE_MAP()
 
 
@@ -137,27 +139,60 @@ BOOL CSmartPodVolumeDlg::OnDeviceChange(UINT nEventType, DWORD_PTR dwData) {
 }
 
 void CSmartPodVolumeDlg::OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
-	auto info = utils::GetDeviceInterfaceInfoFromPath(devInf->dbcc_name);
-	if (!info.deviceInstanceId.length()) {
-		spdlog::warn(L"A device with unknown id is removed. Ignored.");
+	if (m_registeredCallbacks.empty()) {
 		return;
 	}
 
-	std::list<decltype(m_registeredCallbacks)::iterator> toBeRemoved;
-	for (auto it = m_registeredCallbacks.begin(); it != m_registeredCallbacks.end(); ++it) {
-		for (auto& derivedFromId : it->fromDevInfIds) {
-			if (!_wcsicmp(derivedFromId.c_str(), info.deviceInstanceId.c_str())) {
-				it->endpointVolume->UnregisterControlChangeNotify(it->callback);
-				// dont remove here, otherwise `it` becomes invalid and `++it` crushes
-				toBeRemoved.emplace_back(it);
-				spdlog::info(L"Registered device (id={}) is being unregistered because it or its ancestor is removed from computer.",
-					it->mmDeviceId);
-			}
-		}
+	auto mmDeviceCollection = utils::GetMmDeviceCollection();
+	if (!mmDeviceCollection) {
+		spdlog::error(L"Failed to get MMDeviceCollection");
+	}
+	UINT mmDeviceCount;
+	HRESULT hr = mmDeviceCollection->GetCount(&mmDeviceCount);
+	if (FAILED(hr)) {
+		spdlog::error(L"Failed to fetch MmDevice count (hr={})", hr);
+		return;
 	}
 
-	for (auto& it : toBeRemoved) {
-		m_registeredCallbacks.erase(it); // this automatically calls Release() of any COM pointer inside
+	std::set<std::wstring> connectedDeviceIds;
+	for (UINT i = 0; i < mmDeviceCount; ++i) {
+		CComPtr<IMMDevice> device;
+		hr = mmDeviceCollection->Item(i, &device);
+		if (FAILED(hr)) {
+			spdlog::error(L"Failed to fetch the {}th MmDevice.", i);
+			continue;
+		}
+		LPWSTR id;
+		hr = device->GetId(&id);
+		if (FAILED(hr)) {
+			spdlog::error(L"Failed to get ID of the {}th MmDevice.", i);
+			continue;
+		}
+
+		connectedDeviceIds.emplace(utils::WStringLower(id));
+
+		CoTaskMemFree(id);
+	}
+
+	for (auto it = m_registeredCallbacks.begin(); it != m_registeredCallbacks.end();) {
+		if (!connectedDeviceIds.contains(it->first)) {
+			it->second.endpointVolume->UnregisterControlChangeNotify(it->second.callback);
+			spdlog::info(L"Unregistered registered device {} because it's removed from computer.", it->first);
+
+			it = m_registeredCallbacks.erase(it);
+		}
+		else ++it;
+	}
+	
+	for (auto it = m_newMmDeviceWindows.begin(); it != m_newMmDeviceWindows.end();) {
+		if (!connectedDeviceIds.contains(it->first)) {
+			it->second->m_dontNotifyMainWndOnDestroy = true;
+			it->second->DestroyWindow();
+			spdlog::info(L"The NewDeviceDlg of new MMDevice {} is closed because it's removed from computer.", it->first);
+
+			it = m_newMmDeviceWindows.erase(it);
+		}
+		else ++it;
 	}
 }
 
@@ -182,7 +217,8 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
 	info.description = L"耳机";
 	info.id = L"{XXXXXXX}.{XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}";
 
-	CNewDeviceDlg* dlg = new CNewDeviceDlg(info);
+	CNewDeviceDlg* dlg = new CNewDeviceDlg(info, CComPtr<IMMDevice>());
+	dlg->m_dontNotifyMainWndOnDestroy = true;
 	dlg->Create(IDD_NEW_DEVICE);
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
@@ -191,14 +227,14 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
 	utils::MmDeviceInfo info;
 	info.friendlyName = L"劣质耳机";
 	info.description = L"耳机";
-	info.id = L"{XXXXXXX}.{XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}";
+	info.id = L"{YYYYYYY}.{YYYYYYYYYYYYYYYYYYYYYYYYYYYYYY}";
 
 	CVolumeSetFailDlg* dlg = new CVolumeSetFailDlg(E_NOTIMPL, info);
 	dlg->Create(IDD_VOLUME_SET_FAIL);
 	dlg->ShowWindow(SW_SHOWNORMAL);
 }
 
-CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device, std::wstring_view fromDevInfId) {
+CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device) {
 	LPWSTR _rawId;
 	HRESULT hr = device->GetId(&_rawId);
 	if (FAILED(hr)) {
@@ -209,67 +245,59 @@ CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotifica
 	// automatically frees COM string when return
 	std::unique_ptr<WCHAR, std::function<void(WCHAR*)>> id(_rawId, [](WCHAR* ptr) {CoTaskMemFree(ptr); });
 
-	RegisteredDevice* thisDevice = nullptr;
-	for (auto& registeredDevice : m_registeredCallbacks) {
-		if (_wcsicmp(registeredDevice.mmDeviceId.c_str(), id.get()) == 0) {
-			// already registered, only append fromDevInfIds and return
-			thisDevice = &registeredDevice;
-			break;
-		}
+	auto itToPrevious = m_registeredCallbacks.find(utils::WStringLower(id.get()));
+	if (itToPrevious != m_registeredCallbacks.end()) {
+		return &itToPrevious->second;
 	}
 
-	if (!thisDevice) {
-		// only register if not alerady registered
+	// only register if not alerady registered
 
-		CComPtr<IAudioEndpointVolume> endpointVolume;
-		hr = utils::QueryVolumeController(device, &endpointVolume);
-		if (FAILED(hr)) {
-			spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
-			return nullptr;
-		}
-
-		MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(id.get());
-		hr = endpointVolume->RegisterControlChangeNotify(callback);
-		if (FAILED(hr)) {
-			spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
-				id.get(), hr);
-			callback->Release();
-			return nullptr;
-		}
-
-		// registration success
-
-		float volume = 0;
-		BOOL mute = FALSE;
-		hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
-		if (FAILED(hr)) {
-			spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
-				id.get(), hr);
-		}
-		hr = endpointVolume->GetMute(&mute);
-		if (FAILED(hr)) {
-			spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
-				id.get(), hr);
-		}
-
-		callback->m_volumeInfo.volumePercent = volume * 100.f;
-		callback->m_volumeInfo.mute = mute ? true : false;
-
-		RegisteredDevice registeredDevice = {
-			endpointVolume,callback,id.get()
-		};
-		thisDevice = &m_registeredCallbacks.emplace_back(std::move(registeredDevice));
-		spdlog::info(L"Successfully registered volume change notify for id={}", id.get());
-
-		m_volumesToBeSaved[callback->GetLowercaseDeviceId()] = callback->m_volumeInfo;
-		SaveAllVolumes();
-		//SendMessageW(WM_REGISTERED_DEVICE_VOLUME_CHANGED, (WPARAM)&callback, 0);
+	CComPtr<IAudioEndpointVolume> endpointVolume;
+	hr = utils::QueryVolumeController(device, &endpointVolume);
+	if (FAILED(hr)) {
+		spdlog::error(L"Error obtaining IAudioEndpointVolume interface pointer (hr={})", hr);
+		return nullptr;
 	}
 
-	thisDevice->fromDevInfIds.emplace_back(fromDevInfId);
-	//spdlog::info(L"Added devInfId {} to registered device whose mmDeviceId is {}", fromDevInfId.data(), id.get());
+	MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(id.get());
+	hr = endpointVolume->RegisterControlChangeNotify(callback);
+	if (FAILED(hr)) {
+		spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
+			id.get(), hr);
+		callback->Release();
+		return nullptr;
+	}
 
-	return thisDevice;
+	// registration success
+
+	float volume = 0;
+	BOOL mute = FALSE;
+	hr = endpointVolume->GetMasterVolumeLevelScalar(&volume);
+	if (FAILED(hr)) {
+		spdlog::error(L"Error getting initial [volume] for device with id={}, hr={}. Defaulted to 0.",
+			id.get(), hr);
+	}
+	hr = endpointVolume->GetMute(&mute);
+	if (FAILED(hr)) {
+		spdlog::error(L"Error getting initial [mute] for device with id={}, hr={}. Defaulted to false.",
+			id.get(), hr);
+	}
+
+	callback->m_volumeInfo.volumePercent = volume * 100.f;
+	callback->m_volumeInfo.mute = mute ? true : false;
+
+	RegisteredDevice registeredDevice = {
+		endpointVolume,callback
+	};
+	auto ret = &(m_registeredCallbacks[callback->GetLowercaseDeviceId()] = std::move(registeredDevice));
+
+	spdlog::info(L"Successfully registered volume change notify for id={}", id.get());
+
+	m_volumesToBeSaved[callback->GetLowercaseDeviceId()] = callback->m_volumeInfo;
+	SaveAllVolumes();
+	//SendMessageW(WM_REGISTERED_DEVICE_VOLUME_CHANGED, (WPARAM)&callback, 0);
+
+	return ret;
 }
 
 void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
@@ -305,18 +333,6 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 			continue;
 		}
 
-		CComPtr<IPropertyStore> propStore;
-		device->OpenPropertyStore(STGM_READ, &propStore);
-		PROPVARIANT pv;
-		hr = propStore->GetValue(PKEY_Device_ContainerId, &pv);
-		if (SUCCEEDED(hr) && pv.vt == VT_CLSID) {
-			spdlog::info(L"[MYDEBUG] CONTAINER ID = {}", utils::GuidToStringW(*pv.puuid));
-		}
-		else {
-			spdlog::info(L"[MYDEBUG] CONTAINER ID FAIL");
-		}
-		PropVariantClear(&pv);
-
 		connectedMmDevices.emplace_back(std::move(device), utils::UniqueCoTaskPtr<WCHAR>(_rawId));
 	}
 
@@ -332,11 +348,12 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 				if (utils::ConfKeyizeId(connectedMmDevice.id.get()) == deviceId) {
 					// found dest device
 					// register here
-					auto fullId = utils::MmDeviceIdToFullPnpId(connectedMmDevice.id.get());
-					auto registeredDevice = RegisterVolumeNotification(connectedMmDevice.device, fullId);
+					auto registeredDevice = RegisterVolumeNotification(connectedMmDevice.device);
 					if (registeredDevice) {
-						auto ancestors = utils::GetAncestorDeviceIds(fullId);
-						registeredDevice->fromDevInfIds.splice(registeredDevice->fromDevInfIds.end(), ancestors);
+						spdlog::info(L"Successfully registered volume notification for mmdevice {}", connectedMmDevice.id.get());
+					}
+					else {
+						spdlog::info(L"Failed to register volume notification for mmdevice {}", connectedMmDevice.id.get());
 					}
 				}
 			}
@@ -351,9 +368,9 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 }
 
 void CSmartPodVolumeDlg::UnregisterAllVolumeNotifications() {
-	for (auto& device : m_registeredCallbacks) {
-		device.endpointVolume->UnregisterControlChangeNotify(device.callback);
-		device.callback->Release();
+	for (auto& [_, deviceInfo] : m_registeredCallbacks) {
+		deviceInfo.endpointVolume->UnregisterControlChangeNotify(deviceInfo.callback);
+		deviceInfo.callback->Release();
 	}
 }
 
@@ -380,7 +397,7 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 			try {
 				auto j = utils::GetConfigJson();
 				if (!j.is_object()) {
-					OnNewMmDevice(*mmDeviceInfo);
+					OnNewMmDevice(*mmDeviceInfo, mmDevice);
 					return;
 				}
 
@@ -405,7 +422,7 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 					bool failBecauseInvalidConfig;
 					HRESULT hr = utils::ApplyConfiguredVolume(deviceJson, mmDevice, failBecauseInvalidConfig);
 
-					RegisterVolumeNotification(mmDevice, diInfo.deviceInstanceId);
+					RegisterVolumeNotification(mmDevice);
 
 					if (!failBecauseInvalidConfig && FAILED(hr)) {
 						CVolumeSetFailDlg* setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
@@ -415,7 +432,7 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 				}
 				else {
 					// this is a new device
-					OnNewMmDevice(*mmDeviceInfo);
+					OnNewMmDevice(*mmDeviceInfo, mmDevice);
 				}
 			}
 			catch (std::exception& e) {
@@ -429,6 +446,19 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 			spdlog::warn(L"Discovered MMDevice but no info. WTF?");
 		}
 	}
+}
+
+void CSmartPodVolumeDlg::OnNewMmDevice(const utils::MmDeviceInfo& info, const CComPtr<IMMDevice>& device) {
+	auto lowerId = utils::WStringLower(info.id);
+	if (m_newMmDeviceWindows.contains(lowerId)) {
+		return;
+	}
+
+	spdlog::info(L"This is a new device. Asking user for choice.");
+	auto newDeviceDlg = new CNewDeviceDlg(info, device);
+	m_newMmDeviceWindows[lowerId] = newDeviceDlg;
+	newDeviceDlg->Create(IDD_NEW_DEVICE);
+	newDeviceDlg->ShowWindow(SW_SHOWNORMAL);
 }
 
 afx_msg LRESULT CSmartPodVolumeDlg::OnRegisteredDeviceVolumeChanged(WPARAM wParam, LPARAM lParam) {
@@ -489,4 +519,9 @@ bool CSmartPodVolumeDlg::SaveAllVolumes() noexcept {
 		spdlog::error(L"SaveAllVolumes error (unknown error)");
 		return false;
 	}
+}
+
+afx_msg LRESULT CSmartPodVolumeDlg::OnNewDeviceNeedsRegistration(WPARAM wParam, LPARAM lParam) {
+	RegisterVolumeNotification((IMMDevice*)wParam);
+	return 0;
 }

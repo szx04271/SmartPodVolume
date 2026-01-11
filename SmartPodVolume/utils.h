@@ -104,5 +104,3 @@ namespace utils {
 
 }
 
-#define __TO_WIDE(x) L ## x
-#define __WFUNCTION__ __TO_WIDE(__FUNCTION__)
