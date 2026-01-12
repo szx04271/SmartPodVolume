@@ -209,7 +209,10 @@ void CSmartPodVolumeDlg::OnDestroy() {
 	UnregisterAllVolumeNotifications();
 	spdlog::info(L"Unregistered volume notification.");
 
-	SaveAllVolumes();
+	if (m_volumesToBeSaved.size()) {
+		SaveAllVolumes();
+		//KillTimer(AUTO_SAVE_CONFIG_TIMER_ID);
+	}
 }
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {

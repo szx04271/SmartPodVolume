@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "SmartPodVolume.h"
 #include "VolumeSetFailDlg.h"
+#include "constants.h"
 
 
 // CVolumeSetFailDlg 对话框
@@ -12,7 +13,8 @@ IMPLEMENT_DYNAMIC(CVolumeSetFailDlg, CDialog)
 
 CVolumeSetFailDlg::CVolumeSetFailDlg(HRESULT hr, const utils::MmDeviceInfo& deviceInfo, CWnd* pParent /*=nullptr*/)
 	: CDialog(IDD_VOLUME_SET_FAIL, pParent),
-      m_mmDeviceInfo(deviceInfo) {
+	m_forTestPurpose(false),
+    m_mmDeviceInfo(deviceInfo) {
 	m_errCodeString.Format(L"0x%08x", hr);
 }
 
@@ -31,6 +33,8 @@ void CVolumeSetFailDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CVolumeSetFailDlg, CDialog)
 	ON_WM_CTLCOLOR()
 	ON_WM_CLOSE()
+	ON_BN_CLICKED(IDYES, &CVolumeSetFailDlg::OnBnClickedYes)
+	ON_BN_CLICKED(IDNO, &CVolumeSetFailDlg::OnBnClickedNo)
 END_MESSAGE_MAP()
 
 
@@ -84,4 +88,56 @@ BOOL CVolumeSetFailDlg::PreTranslateMessage(MSG* pMsg) {
 
 void CVolumeSetFailDlg::OnCancel() {
 	// intentionally kept empty
+}
+
+void CVolumeSetFailDlg::OnBnClickedYes() {
+	if (m_forTestPurpose) {
+		DestroyWindow();
+		return;
+	}
+	
+	try {
+		auto configJson = utils::GetConfigJson();
+		if (!configJson.is_object()) {
+			configJson = {};
+		}
+		auto id = utils::ConfKeyizeId(m_mmDeviceInfo.id);
+
+		auto& whiteList = configJson[conf_key::WHITELIST];
+		if (whiteList.contains(id)) {
+			whiteList.erase(id);
+		}
+
+		auto& blacklist = configJson[conf_key::BLACKLIST];
+		if (!blacklist.is_object()) {
+			blacklist = {};
+		}
+		blacklist[id] = {
+			{conf_key::FRIENDLY_NAME, utils::WcToU8(m_mmDeviceInfo.friendlyName)},
+			{conf_key::DESCRIPTION, utils::WcToU8(m_mmDeviceInfo.description)}
+		};
+
+		bool writeSuccess = utils::WriteConfigFile(configJson.dump());
+		if (writeSuccess) {
+			spdlog::info(L"Successfully moved device {} from whitelist to blacklist", m_mmDeviceInfo.id);
+		}
+		else {
+			spdlog::error(L"Failed to write config file when trying to move device {} from whitelist to blacklist",
+				m_mmDeviceInfo.id);
+		}
+	}
+	catch (std::exception& e) {
+		spdlog::error(L"Error moving device {} from white to blacklist ({})", m_mmDeviceInfo.id,
+			utils::AcpToWc(e.what()));
+	}
+	catch (...) {
+		spdlog::error(L"Error moving device {} from white to blacklist (unknown error)", m_mmDeviceInfo.id);
+	}
+
+	DestroyWindow();
+}
+
+void CVolumeSetFailDlg::OnBnClickedNo() {
+	// do nothing because when this window pops up, the device is in whitelist
+	DestroyWindow();
 }

@@ -273,7 +273,7 @@ namespace utils {
 		filePath += CONFIG_FILE_NAME;
 
 		FILE* file = nullptr;
-		auto err = _wfopen_s(&file, filePath.c_str(), L"rb, ccs=UTF-8");
+		auto err = _wfopen_s(&file, filePath.c_str(), L"rb");
 		if (err != 0) {
 			if (err != ENOENT) {
 				spdlog::error(L"Error opening config file (errno={}).", err);
@@ -384,8 +384,7 @@ namespace utils {
 
 	bool WriteConfigFile(std::string_view configString) noexcept {
 		FILE* file = nullptr;
-		// TODO: modify this to support BOM
-		auto err = _wfopen_s(&file, (GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str(), L"wb, ccs=UTF-8");
+		auto err = _wfopen_s(&file, (GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str(), L"wb");
 		if (err) {
 			spdlog::error(L"Error opening config file for writing (errno={}).", err);
 			return false;

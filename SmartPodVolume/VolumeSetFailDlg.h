@@ -23,6 +23,8 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 public:
+	bool m_forTestPurpose;
+
 	CDeviceInfoListCtrl m_deviceInfoReport;
 	utils::MmDeviceInfo m_mmDeviceInfo;
 	virtual void PostNcDestroy();
@@ -33,4 +35,6 @@ public:
 	afx_msg void OnClose();
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void OnCancel();
+	afx_msg void OnBnClickedYes();
+	afx_msg void OnBnClickedNo();
 };
