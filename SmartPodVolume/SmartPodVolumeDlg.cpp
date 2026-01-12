@@ -139,10 +139,6 @@ BOOL CSmartPodVolumeDlg::OnDeviceChange(UINT nEventType, DWORD_PTR dwData) {
 }
 
 void CSmartPodVolumeDlg::OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf) {
-	if (m_registeredCallbacks.empty()) {
-		return;
-	}
-
 	auto mmDeviceCollection = utils::GetMmDeviceCollection();
 	if (!mmDeviceCollection) {
 		spdlog::error(L"Failed to get MMDeviceCollection");

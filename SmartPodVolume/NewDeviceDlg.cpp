@@ -181,7 +181,7 @@ void CNewDeviceDlg::OnBnClickedNo() {
 			{conf_key::FRIENDLY_NAME, utils::WcToU8(m_mmDeviceInfo.friendlyName)}
 		};
 
-		bool writeSuccess = utils::WriteConfigFile(deviceJson.dump());
+		bool writeSuccess = utils::WriteConfigFile(configJson.dump());
 		if (writeSuccess) {
 			spdlog::info(L"Successfully added device {} into blacklist.", m_mmDeviceInfo.id);
 		}

@@ -384,6 +384,7 @@ namespace utils {
 
 	bool WriteConfigFile(std::string_view configString) noexcept {
 		FILE* file = nullptr;
+		// TODO: modify this to support BOM
 		auto err = _wfopen_s(&file, (GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str(), L"wb, ccs=UTF-8");
 		if (err) {
 			spdlog::error(L"Error opening config file for writing (errno={}).", err);
