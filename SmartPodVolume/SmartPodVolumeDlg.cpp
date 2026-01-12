@@ -194,6 +194,11 @@ void CSmartPodVolumeDlg::OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 		}
 		else ++it;
 	}
+
+	if (!m_volumesToBeSaved.empty()) {
+		SaveAllVolumes();
+		KillTimer(AUTO_SAVE_CONFIG_TIMER_ID);
+	}
 }
 
 void CSmartPodVolumeDlg::OnDestroy() {
