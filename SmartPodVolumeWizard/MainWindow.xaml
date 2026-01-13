@@ -6,23 +6,72 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:SmartPodVolumeWizard"
         mc:Ignorable="d"
-        SizeToContent="WidthAndHeight"
-        ResizeMode="CanMinimize"
+        Width="400" Height="300"
+        MinWidth="400" MinHeight="250"
         WindowStartupLocation="CenterScreen"
         Title="SmartPodVolume 设置向导">
+    <Window.DataContext>
+        <!-- 直接在这里实例化 ViewModel 以便 XAML 预览处可正确显示各控件属性 -->
+        <local:MainViewModel />
+    </Window.DataContext>
     <Window.Resources>
-        <Thickness x:Key="labelPadding">4</Thickness>
-        <Thickness x:Key="stackSpacing">0,0,0,5</Thickness>
-        <Thickness x:Key="tabPagePadding">0</Thickness>
+        <Thickness x:Key="LabelPadding">4</Thickness>
+        <Thickness x:Key="StackSpacingVert">0,0,0,5</Thickness>
+        <Thickness x:Key="StackSpacingHorz" Right="5"></Thickness>
+        <Thickness x:Key="TabPagePadding">0</Thickness>
     </Window.Resources>
-    <StackPanel Margin="5" Width="390">
-        <Grid Margin="{StaticResource stackSpacing}">
-            <TextBlock x:Name="bkgndServiceStatusLabel" Text="已停止" FontWeight="Bold" HorizontalAlignment="Left" Padding="{StaticResource labelPadding}" VerticalAlignment="Center"/>
-            <Button x:Name="startButton" Content="开始" Width="90" HorizontalAlignment="Right" Margin="0,0,0,0" Click="startButton_Click"/>
-        </Grid>
-        <TabControl>
-            <TabItem Header="已知设备">
-                <ListView x:Name="whiteListView" Height="200" Margin="{StaticResource tabPagePadding}">
+    <DockPanel Margin="5" LastChildFill="True" >
+        <DockPanel DockPanel.Dock="Top" Margin="{StaticResource StackSpacingVert}" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" x:Name="BkgndServiceStatusLabel" FontWeight="Bold" HorizontalAlignment="Left" Padding="{StaticResource LabelPadding}" VerticalAlignment="Center">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ServiceRunning}" Value="True">
+                                <Setter Property="Text" Value="运行中" />
+                                <Setter Property="Foreground" Value="DarkGreen" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ServiceRunning}" Value="False">
+                                <Setter Property="Text" Value="已停止" />
+                                <Setter Property="Foreground" Value="Red" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="StartButton" FontWeight="Bold" Margin="{StaticResource StackSpacingHorz}" Width="100"
+                        HorizontalAlignment="Right" Padding="3" Click="StartButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ServiceRunning}" Value="True">
+                                    <Setter Property="Content" Value="停止服务" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ServiceRunning}" Value="False">
+                                    <Setter Property="Content" Value="启动服务" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button x:Name="RefreshBtn" Content="刷新列表" Padding="3" Width="100" />
+            </StackPanel>
+        </DockPanel>
+        <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
+            <TextBlock VerticalAlignment="Center" Text="更改设置后需重启服务方可生效。" DockPanel.Dock="Left" />
+            <Button x:Name="RestartServiceBtn" DockPanel.Dock="Right" Padding="3" Content="重启服务" Width="100"
+                    FontWeight="Bold" />
+        </DockPanel>
+        <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="{StaticResource StackSpacingVert}">
+            <TextBlock VerticalAlignment="Center" Text="操作选定设备：" DockPanel.Dock="Left" />
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button x:Name="MoveToTheOtherListBtn" Content="{Binding MoveToOtherListBtnText}" Width="100" Margin="{StaticResource StackSpacingHorz}" Padding="3"/>
+                <Button x:Name="ForgetDeviceBtn" Content="忘记设备" Width="100" Padding="3"/>
+            </StackPanel>
+        </DockPanel>
+        <TabControl DockPanel.Dock="Top" x:Name="ListViewTab" Margin="{StaticResource StackSpacingVert}" SelectedIndex="{Binding ListTabSelectedIndex}" >
+            <TabItem Header="已接管设备">
+                <ListView x:Name="WhiteListView" Margin="{StaticResource TabPagePadding}">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="友好名称" Width="100" />
@@ -35,7 +84,7 @@
                 </ListView>
             </TabItem>
             <TabItem Header="黑名单设备">
-                <ListView x:Name="blackListView" Height="200" Margin="{StaticResource tabPagePadding}">
+                <ListView x:Name="BlackListView" Margin="{StaticResource TabPagePadding}">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="友好名称" Width="100" />
@@ -46,6 +95,6 @@
                 </ListView>
             </TabItem>
         </TabControl>
-    </StackPanel>
+    </DockPanel>
 
 </Window>
