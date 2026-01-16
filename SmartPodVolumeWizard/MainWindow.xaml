@@ -6,20 +6,35 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:SmartPodVolumeWizard"
         mc:Ignorable="d"
-        Width="400" Height="300"
+        Width="410" Height="300"
         MinWidth="400" MinHeight="250"
-        WindowStartupLocation="CenterScreen"
-        Title="SmartPodVolume 设置向导">
+        WindowStartupLocation="CenterScreen">
+
     <Window.DataContext>
         <!-- 直接在这里实例化 ViewModel 以便 XAML 预览处可正确显示各控件属性 -->
         <local:MainViewModel />
     </Window.DataContext>
+
     <Window.Resources>
         <Thickness x:Key="LabelPadding">4</Thickness>
         <Thickness x:Key="StackSpacingVert">0,0,0,5</Thickness>
         <Thickness x:Key="StackSpacingHorz" Right="5"></Thickness>
         <Thickness x:Key="TabPagePadding">0</Thickness>
     </Window.Resources>
+
+    <Window.Style>
+        <Style TargetType="Window">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ConfigModified}" Value="True">
+                    <Setter Property="Title" Value="SmartPodVolume 设置向导 *已修改" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ConfigModified}" Value="False">
+                    <Setter Property="Title" Value="SmartPodVolume 设置向导" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Style>
+    
     <DockPanel Margin="5" LastChildFill="True" >
         <DockPanel DockPanel.Dock="Top" Margin="{StaticResource StackSpacingVert}" LastChildFill="False">
             <TextBlock DockPanel.Dock="Left" x:Name="BkgndServiceStatusLabel" FontWeight="Bold" HorizontalAlignment="Left" Padding="{StaticResource LabelPadding}" VerticalAlignment="Center">
@@ -54,42 +69,42 @@
                         </Style>
                     </Button.Style>
                 </Button>
-                <Button x:Name="RefreshBtn" Content="刷新列表" Padding="3" Width="100" />
+                <Button x:Name="RefreshListsBtn" Content="刷新列表" Padding="3" Width="100" Click="RefreshListsBtn_Click" />
             </StackPanel>
         </DockPanel>
         <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
-            <TextBlock VerticalAlignment="Center" Text="更改设置后需重启服务方可生效。" DockPanel.Dock="Left" />
-            <Button x:Name="RestartServiceBtn" DockPanel.Dock="Right" Padding="3" Content="重启服务" Width="100"
-                    FontWeight="Bold" />
+            <TextBlock VerticalAlignment="Center" Text="更改设置后需重启后台服务才能完全生效。" DockPanel.Dock="Left" />
+            <Button x:Name="ApplyConfigBtn" DockPanel.Dock="Right" Padding="3" Content="重启服务" Width="100"
+                    FontWeight="Bold" Click="ApplyConfigBtn_Click" />
         </DockPanel>
         <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="{StaticResource StackSpacingVert}">
             <TextBlock VerticalAlignment="Center" Text="操作选定设备：" DockPanel.Dock="Left" />
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                <Button x:Name="MoveToTheOtherListBtn" Content="{Binding MoveToOtherListBtnText}" Width="100" Margin="{StaticResource StackSpacingHorz}" Padding="3"/>
-                <Button x:Name="ForgetDeviceBtn" Content="忘记设备" Width="100" Padding="3"/>
+                <Button x:Name="MoveToTheOtherListBtn" Content="{Binding MoveToOtherListBtnText}" Width="100" Margin="{StaticResource StackSpacingHorz}" Padding="3" Click="MoveToTheOtherListBtn_Click"/>
+                <Button x:Name="ForgetDeviceBtn" Content="忘记设备" Width="100" Padding="3" Click="ForgetDeviceBtn_Click"/>
             </StackPanel>
         </DockPanel>
         <TabControl DockPanel.Dock="Top" x:Name="ListViewTab" Margin="{StaticResource StackSpacingVert}" SelectedIndex="{Binding ListTabSelectedIndex}" >
             <TabItem Header="已接管设备">
-                <ListView x:Name="WhiteListView" Margin="{StaticResource TabPagePadding}">
+                <ListView x:Name="WhiteListView" SelectionMode="Single" ItemsSource="{Binding WhiteListDevices}" Margin="{StaticResource TabPagePadding}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="友好名称" Width="100" />
-                            <GridViewColumn Header="静音" Width="30" />
-                            <GridViewColumn Header="期望音量(%)" Width="70" />
-                            <GridViewColumn Header="描述" Width="60" />
-                            <GridViewColumn Header="MM设备ID" Width="80" />
+                            <GridViewColumn Header="友好名称" DisplayMemberBinding="{Binding Value.FriendlyName}" Width="100" />
+                            <GridViewColumn Header="静音" DisplayMemberBinding="{Binding Value.Mute}" Width="30" />
+                            <GridViewColumn Header="期望音量(%)" DisplayMemberBinding="{Binding Value.VolumePercent}" Width="70" />
+                            <GridViewColumn Header="描述" DisplayMemberBinding="{Binding Value.Description}" Width="60" />
+                            <GridViewColumn Header="MM设备ID" DisplayMemberBinding="{Binding Key}" Width="80" />
                         </GridView>
                     </ListView.View>
                 </ListView>
             </TabItem>
             <TabItem Header="黑名单设备">
-                <ListView x:Name="BlackListView" Margin="{StaticResource TabPagePadding}">
+                <ListView x:Name="BlackListView" SelectionMode="Single" ItemsSource="{Binding BlackListDevices}" Margin="{StaticResource TabPagePadding}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="友好名称" Width="100" />
-                            <GridViewColumn Header="描述" Width="70" />
-                            <GridViewColumn Header="MM设备ID" Width="100" />
+                            <GridViewColumn Header="友好名称" DisplayMemberBinding="{Binding Value.FriendlyName}" Width="100" />
+                            <GridViewColumn Header="描述" DisplayMemberBinding="{Binding Value.Description}" Width="70" />
+                            <GridViewColumn Header="MM设备ID" DisplayMemberBinding="{Binding Key}" Width="100" />
                         </GridView>
                     </ListView.View>
                 </ListView>

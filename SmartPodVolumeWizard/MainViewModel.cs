@@ -1,9 +1,13 @@
-﻿using System.ComponentModel;
-using System.Runtime.CompilerServices;
+﻿using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace SmartPodVolumeWizard
 {
+    using DeviceIdInfoPair = KeyValuePair<string, ConfigReadWrite.DeviceInfo>;
+    using DeviceMap = Dictionary<string, ConfigReadWrite.DeviceInfo>;
+
     public class MainViewModel : ViewModelBase
     {
         private readonly ImmutableArray<string> _myTexts = 
@@ -12,6 +16,9 @@ namespace SmartPodVolumeWizard
         private bool _serviceRunning;
         private int _listTabSelectedIndex;
         private string _moveToOtherListBtnText;
+        private bool _configModified;
+        private DeviceMap _whiteListDevices;
+        private DeviceMap _blackListDevices;
 
         public bool ServiceRunning
         {
@@ -57,6 +64,45 @@ namespace SmartPodVolumeWizard
         public void OnListTabSelectedIndexChanged()
         {
             MoveToOtherListBtnText = _myTexts[ListTabSelectedIndex];
+        }
+
+        public bool ConfigModified
+        {
+            get => _configModified;
+            set
+            {
+                if (_configModified != value)
+                {
+                    _configModified = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public DeviceMap WhiteListDevices
+        {
+            get => _whiteListDevices;
+            set
+            {
+                if (_whiteListDevices != value)
+                {
+                    _whiteListDevices = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public DeviceMap BlackListDevices
+        {
+            get => _blackListDevices;
+            set
+            {
+                if (_blackListDevices != value)
+                {
+                    _blackListDevices = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
         public MainViewModel()

@@ -246,19 +246,17 @@ namespace utils {
 	}
 
 	std::wstring GetRealCurrentDirectory() noexcept {
-		std::unique_ptr<WCHAR[]> buffer = std::make_unique<WCHAR[]>(1024);
+		constexpr size_t BUFFER_LEN = 1024;
+		std::unique_ptr<WCHAR[]> buffer = std::make_unique<WCHAR[]>(BUFFER_LEN);
 		std::wstring ret;
-		auto len = GetModuleFileNameW(nullptr, buffer.get(), 1024);
-		if (!len) {
+		auto cchWritten = GetCurrentDirectoryW(BUFFER_LEN, buffer.get());
+		if (!cchWritten) {
 			return ret;
 		}
-		
-		auto lastBackslashPointer = wcsrchr(buffer.get(), L'\\');
-		if (!lastBackslashPointer) {
-			return ret;
-		}
-		lastBackslashPointer[1] = 0;
 		ret.assign(buffer.get());
+		if (ret.back() != L'\\') {
+			ret += L'\\';
+		}
 		return ret;
 	}
 
