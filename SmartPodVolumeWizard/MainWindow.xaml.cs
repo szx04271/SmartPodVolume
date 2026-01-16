@@ -12,6 +12,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.IO;
+using System.Threading;
 
 namespace SmartPodVolumeWizard
 {
@@ -49,11 +51,57 @@ namespace SmartPodVolumeWizard
             set => Vm.BlackListDevices = value;
         }
 
+        private int _updatesToBeIgnored = 0;
+
         public MainWindow()
         {
             InitializeComponent();
             this.Closing += MainWindow_Closing;
             RefreshLists();
+
+            // watch config file change
+            FileSystemWatcher watcher = new FileSystemWatcher
+            { 
+                Path = Directory.GetCurrentDirectory(),
+                Filter = ConfigReadWrite.ConfigFileName,
+                EnableRaisingEvents = true, // what use?
+                // without filter `FileName`, `Deleted` can't be triggered
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName
+            };
+            watcher.Created += ConfigFileChanged;
+            watcher.Changed += ConfigFileChanged;
+            watcher.Deleted += ConfigFileChanged;
+            watcher.Renamed += ConfigFileChanged;
+        }
+
+
+        private void ConfigFileChanged(object sender, FileSystemEventArgs e)
+        {
+            // 这里不是主线程，注意不能直接操作UI
+            try
+            {
+                if (e.ChangeType == WatcherChangeTypes.Changed || e.ChangeType == WatcherChangeTypes.Created)
+                {
+                    // Avoid executing the function body multiple times due to multiple buffered writing
+                    // of one actual WriteFile call.
+                    // If file is still being written, this will throw an error.
+                    using (var file = File.OpenWrite(e.FullPath)) { }
+                }
+
+                if (e.ChangeType == WatcherChangeTypes.Changed)
+                { 
+                    // File.WriteAllText called by us will trigger at least one `Changed`
+                    // whether the file existed or not before.
+                    if (_updatesToBeIgnored != 0)
+                    {
+                        Interlocked.Decrement(ref _updatesToBeIgnored);
+                        return;
+                    }
+                }
+
+                Application.Current.Dispatcher.Invoke(() => { RefreshLists(); });
+            }
+            catch { }
         }
 
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -128,6 +176,7 @@ namespace SmartPodVolumeWizard
             fromDict.Remove(selectedDevice.Value.Key);
             toDict.Add(selectedDevice.Value.Key, selectedDevice.Value.Value);
             ConfigReadWrite.SaveConfig(WhiteListDevices, BlackListDevices);
+            Interlocked.Increment(ref _updatesToBeIgnored);
 
             fromListView.Items.Refresh();
             toListView.Items.Refresh();
@@ -157,6 +206,7 @@ namespace SmartPodVolumeWizard
 
             fromDict.Remove(selectedDevice.Value.Key);
             ConfigReadWrite.SaveConfig(WhiteListDevices, BlackListDevices);
+            Interlocked.Increment(ref _updatesToBeIgnored);
 
             fromListView.Items.Refresh();
         }
