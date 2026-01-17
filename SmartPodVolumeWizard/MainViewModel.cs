@@ -19,6 +19,7 @@ namespace SmartPodVolumeWizard
         private bool _configModified;
         private DeviceMap _whiteListDevices;
         private DeviceMap _blackListDevices;
+        private bool _canStartOrEndService;
 
         public bool ServiceRunning
         {
@@ -108,6 +109,20 @@ namespace SmartPodVolumeWizard
         public MainViewModel()
         {
             MoveToOtherListBtnText = _myTexts[0];
+            CanStartOrEndService = true;
+        }
+
+        public bool CanStartOrEndService
+        {
+            get => _canStartOrEndService;
+            set
+            {
+                if (_canStartOrEndService != value)
+                {
+                    _canStartOrEndService = value;
+                    OnPropertyChanged();
+                }
+            }
         }
     }
 }

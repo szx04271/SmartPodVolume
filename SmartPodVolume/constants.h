@@ -29,3 +29,7 @@ enum CustomWindowMessages {
 	// return value: unused
 	WM_NEW_DEVICE_NEEDS_REGISTRATION
 };
+
+inline constexpr LPCWSTR BKGND_PROCESS_PIPE_NAME = LR"(\\.\pipe\D9227EEB_62EB_4903_B4A1_5ACB5D97FCBC)";
+inline constexpr BYTE BKGND_PROCESS_ALIVE_SIGNAL = 0x84;
+inline constexpr BYTE BKGND_PROCESS_STOP_SIGNAL = 0xfe;

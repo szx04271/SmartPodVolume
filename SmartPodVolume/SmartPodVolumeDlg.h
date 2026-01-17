@@ -54,6 +54,7 @@ public:
 
 	void OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf);
 
+	afx_msg BOOL OnQueryEndSession();
 	afx_msg void OnDestroy();
 	afx_msg void OnBnClickedDisplayNewDeviceDialog();
 	afx_msg void OnBnClickedDisplayVolumeSetFailDialog();
@@ -79,4 +80,5 @@ public:
 
 	bool SaveAllVolumes() noexcept;
 	
+	void WizardCommunicationProc() noexcept;
 };

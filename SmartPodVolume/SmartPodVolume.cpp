@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "SmartPodVolume.h"
 #include "SmartPodVolumeDlg.h"
+#include "utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -48,6 +49,8 @@ BOOL CSmartPodVolumeApp::InitInstance()
 	InitCommonControlsEx(&InitCtrls);
 
 	CWinApp::InitInstance();
+
+	utils::SetWorkingDirToExeDir();
 
 	m_logger = spdlog::rotating_logger_mt("0", "logs/smart_pod_volume.log", 1048576ui64 * 5, 3);
 	spdlog::set_default_logger(m_logger);

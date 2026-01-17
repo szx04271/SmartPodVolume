@@ -102,5 +102,7 @@ namespace utils {
 
 	bool WriteConfigFile(std::string_view configString) noexcept;
 
+	// Set working dir to where the exe is actually located.
+	bool SetWorkingDirToExeDir() noexcept;
 }
 

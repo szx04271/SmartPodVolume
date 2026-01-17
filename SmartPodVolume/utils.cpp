@@ -400,4 +400,16 @@ namespace utils {
 		return true;
 	}
 
+	bool SetWorkingDirToExeDir() noexcept
+	{
+		constexpr size_t BUFFER_LEN = 1024;
+		std::unique_ptr<WCHAR[]> buffer = std::make_unique<WCHAR[]>(BUFFER_LEN);
+		auto cchWritten = GetCurrentDirectoryW(BUFFER_LEN, buffer.get());
+		if (!cchWritten) {
+			return false;
+		}
+
+		return SetCurrentDirectoryW(buffer.get());
+	}
+
 }

@@ -43,11 +43,10 @@ namespace SmartPodVolumeWizard
             return null;
         }
 
-        public static DeviceMap GetWhiteListDevices()
+        public static DeviceMap GetWhiteListDevices(JObject configJson)
         {
             DeviceMap ret = new DeviceMap();
 
-            var configJson = TryGetConfigJson();
             if (configJson == null)
             {
                 return ret;
@@ -84,11 +83,10 @@ namespace SmartPodVolumeWizard
             return ret;
         }
 
-        public static DeviceMap GetBlackListDevices()
+        public static DeviceMap GetBlackListDevices(JObject configJson)
         {
             DeviceMap ret = new DeviceMap();
 
-            var configJson = TryGetConfigJson();
             if (configJson == null)
             {
                 return ret;
@@ -136,5 +134,7 @@ namespace SmartPodVolumeWizard
             }
             catch { }
         }
+
+
     }
 }

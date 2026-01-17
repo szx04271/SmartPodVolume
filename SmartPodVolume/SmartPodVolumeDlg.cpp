@@ -44,6 +44,7 @@ BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_WM_TIMER()
 	ON_MESSAGE(WM_NEWDEVICEDLG_CLOSED, &CSmartPodVolumeDlg::OnNewdevicedlgClosed)
 	ON_MESSAGE(WM_NEW_DEVICE_NEEDS_REGISTRATION, &CSmartPodVolumeDlg::OnNewDeviceNeedsRegistration)
+	ON_WM_QUERYENDSESSION()
 END_MESSAGE_MAP()
 
 
@@ -75,6 +76,9 @@ BOOL CSmartPodVolumeDlg::OnInitDialog() {
 	}
 
 	RegisterVolumeNotificationsForAllKnown();
+
+	std::thread wizardCommunicationThread(&CSmartPodVolumeDlg::WizardCommunicationProc, this);
+	wizardCommunicationThread.detach();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返��?TRUE
 }
@@ -525,7 +529,73 @@ bool CSmartPodVolumeDlg::SaveAllVolumes() noexcept {
 	}
 }
 
+void CSmartPodVolumeDlg::WizardCommunicationProc() noexcept {
+	int retryRemining = 5;
+	bool toStop = false;
+
+	constexpr BYTE aliveSignalBuf[1] = { BKGND_PROCESS_ALIVE_SIGNAL };
+	
+	// in sub thread, dont operate UI directly
+	while (!toStop) {
+		WaitNamedPipeW(BKGND_PROCESS_PIPE_NAME, INFINITE);
+		HANDLE hPipe = CreateFileW(BKGND_PROCESS_PIPE_NAME, GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+		if (hPipe == INVALID_HANDLE_VALUE) {
+			spdlog::warn(L"CreateFileW (for pipe) failed, lasterror={}. Retry times remaining: {}", GetLastError(),
+				retryRemining);
+			if (retryRemining == 0) {
+				break;
+			}
+			--retryRemining;
+			continue;
+		}
+
+		spdlog::info(L"Successfully connected to wizard.");
+		// connected to wizard
+		while (true) {
+			DWORD bytesAvailable = 0;
+			// see if stop signal is sent
+			PeekNamedPipe(hPipe, nullptr, 0, nullptr, &bytesAvailable, nullptr);
+			if (bytesAvailable) {
+				BYTE buf[1]{};
+				DWORD bytesRead = 0;
+				if (ReadFile(hPipe, buf, 1, &bytesRead, nullptr) && buf[0] == BKGND_PROCESS_STOP_SIGNAL) {
+					spdlog::info(L"Wizard sent `stop service` signal. Exiting.");
+					toStop = true; // exit external loop
+					break;
+				}
+			}
+
+			// send alive signal
+			DWORD _;
+			auto writeSuccess = WriteFile(hPipe, aliveSignalBuf, 1, &_, nullptr);
+			if (!writeSuccess && GetLastError() == ERROR_BROKEN_PIPE) {
+				// server(wizard) died
+				spdlog::info(L"Wizard is closed. Waiting for next server connection.");
+				break;
+			}
+
+			Sleep(1000);
+		}
+
+		CloseHandle(hPipe);
+	}
+
+	PostMessageW(WM_CLOSE);
+}
+
 afx_msg LRESULT CSmartPodVolumeDlg::OnNewDeviceNeedsRegistration(WPARAM wParam, LPARAM lParam) {
 	RegisterVolumeNotification((IMMDevice*)wParam);
 	return 0;
 }
+
+BOOL CSmartPodVolumeDlg::OnQueryEndSession() {
+	if (!CDialog::OnQueryEndSession())
+		return FALSE;
+
+	SendMessageW(WM_CLOSE);
+	
+	return TRUE;
+}
+
+

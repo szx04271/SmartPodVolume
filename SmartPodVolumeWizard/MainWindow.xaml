@@ -16,6 +16,7 @@
     </Window.DataContext>
 
     <Window.Resources>
+        <local:BoolToChineseConverter x:Key="BoolToChineseConverter"/>
         <Thickness x:Key="LabelPadding">4</Thickness>
         <Thickness x:Key="StackSpacingVert">0,0,0,5</Thickness>
         <Thickness x:Key="StackSpacingHorz" Right="5"></Thickness>
@@ -37,7 +38,7 @@
     
     <DockPanel Margin="5" LastChildFill="True" >
         <DockPanel DockPanel.Dock="Top" Margin="{StaticResource StackSpacingVert}" LastChildFill="False">
-            <TextBlock DockPanel.Dock="Left" x:Name="BkgndServiceStatusLabel" FontWeight="Bold" HorizontalAlignment="Left" Padding="{StaticResource LabelPadding}" VerticalAlignment="Center">
+            <TextBlock DockPanel.Dock="Left" x:Name="BkgndServiceStatusLabel" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Style.Triggers>
@@ -55,7 +56,7 @@
             </TextBlock>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <Button x:Name="StartButton" FontWeight="Bold" Margin="{StaticResource StackSpacingHorz}" Width="100"
-                        HorizontalAlignment="Right" Padding="3" Click="StartButton_Click">
+                        HorizontalAlignment="Right" Padding="3" Click="StartButton_Click" IsEnabled="{Binding CanStartOrEndService}">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Style.Triggers>
@@ -72,10 +73,11 @@
                 <Button x:Name="RefreshListsBtn" Content="刷新列表" Padding="3" Width="100" Click="RefreshListsBtn_Click" />
             </StackPanel>
         </DockPanel>
+        <CheckBox x:Name="AutoStartCheckBox" DockPanel.Dock="Top" Margin="{StaticResource StackSpacingVert}" Content="用户登录时尝试自启动后台服务" Click="AutoStartCheckBox_Click" />
         <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
             <TextBlock VerticalAlignment="Center" Text="更改设置后需重启后台服务才能完全生效。" DockPanel.Dock="Left" />
             <Button x:Name="ApplyConfigBtn" DockPanel.Dock="Right" Padding="3" Content="重启服务" Width="100"
-                    FontWeight="Bold" Click="ApplyConfigBtn_Click" />
+                    FontWeight="Bold" Click="ApplyConfigBtn_Click" IsEnabled="{Binding CanStartOrEndService}" />
         </DockPanel>
         <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="{StaticResource StackSpacingVert}">
             <TextBlock VerticalAlignment="Center" Text="操作选定设备：" DockPanel.Dock="Left" />
@@ -90,7 +92,7 @@
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="友好名称" DisplayMemberBinding="{Binding Value.FriendlyName}" Width="100" />
-                            <GridViewColumn Header="静音" DisplayMemberBinding="{Binding Value.Mute}" Width="30" />
+                            <GridViewColumn Header="静音" DisplayMemberBinding="{Binding Value.Mute, Converter={StaticResource BoolToChineseConverter}}" Width="30" />
                             <GridViewColumn Header="期望音量(%)" DisplayMemberBinding="{Binding Value.VolumePercent}" Width="70" />
                             <GridViewColumn Header="描述" DisplayMemberBinding="{Binding Value.Description}" Width="60" />
                             <GridViewColumn Header="MM设备ID" DisplayMemberBinding="{Binding Key}" Width="80" />

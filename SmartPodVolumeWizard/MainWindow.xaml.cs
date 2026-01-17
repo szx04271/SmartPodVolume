@@ -14,6 +14,10 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.IO;
 using System.Threading;
+using Microsoft.Win32;
+using System.Reflection;
+using System.Diagnostics;
+using System.IO.Pipes;
 
 namespace SmartPodVolumeWizard
 {
@@ -25,7 +29,18 @@ namespace SmartPodVolumeWizard
     /// </summary>
     public partial class MainWindow : Window
     {
+        const string BkServiceExeName = "SmartPodVolume.exe";
+        const string AutoStartRegValueName = "SmartPodVolume";
+        const string AutoStartRegKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+
         MainViewModel Vm => (MainViewModel)DataContext;
+
+        // volatile 使对该变量的赋值立即反映到内存中，防止子线程读到缓存值
+        volatile bool _serviceStopRequired = false;
+        TaskCompletionSource<bool> _seviceStopCompletionSource, _serviceStartCompletionSource;
+
+        CancellationTokenSource _cts = new CancellationTokenSource();
+        Task _bkgndProcessWatcherTask = null;
         
         bool IsServiceRunning
         {
@@ -56,12 +71,26 @@ namespace SmartPodVolumeWizard
         public MainWindow()
         {
             InitializeComponent();
+            Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // set working dir to where the exe is actually located
+            Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
+            CheckBkServiceExeFileExistence();
+
             this.Closing += MainWindow_Closing;
+
+            _bkgndProcessWatcherTask = Task.Run(() => BkgndProcessWatcher(_cts.Token) );
+
+            ValidateAutoStartOption();
             RefreshLists();
 
             // watch config file change
             FileSystemWatcher watcher = new FileSystemWatcher
-            { 
+            {
                 Path = Directory.GetCurrentDirectory(),
                 Filter = ConfigReadWrite.ConfigFileName,
                 EnableRaisingEvents = true, // what use?
@@ -73,7 +102,6 @@ namespace SmartPodVolumeWizard
             watcher.Deleted += ConfigFileChanged;
             watcher.Renamed += ConfigFileChanged;
         }
-
 
         private void ConfigFileChanged(object sender, FileSystemEventArgs e)
         {
@@ -104,33 +132,78 @@ namespace SmartPodVolumeWizard
             catch { }
         }
 
-        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (!Vm.CanStartOrEndService)
+            {
+                e.Cancel = true;
+                return;
+            }
+
             if (IsConfigModified)
             {
                 var msgBoxResult = MessageBox.Show("您已修改了设置，但未保存，是否立即保存并应用？",
                     "应用设置提示", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
                 if (msgBoxResult == MessageBoxResult.Yes)
                 {
-                    // TODO: restart service
+                    e.Cancel = true;
+                    await RestartService();
+                    Close();
                 }
                 else if (msgBoxResult == MessageBoxResult.Cancel)
                 {
                     e.Cancel = true;
+                    return;
                 }
             }
+
+            _cts?.Cancel(); // 其实这里就算没这句，关闭程序后CLR也会帮我们取消。
+                            // 但取消会导致子线程里面的耗时函数抛异常，catch住就好了。
+            //_bkgndProcessWatcherTask.Wait();
         }
 
-        private void StartButton_Click(object sender, RoutedEventArgs e)
+        private async Task StopService()
         {
-            IsServiceRunning = !IsServiceRunning;
-            IsConfigModified = !IsConfigModified;
+            _seviceStopCompletionSource = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _serviceStopRequired = true;
+            await _seviceStopCompletionSource.Task;
+            _serviceStopRequired = false;
+        }
+
+        private async Task StartService()
+        {
+            _serviceStartCompletionSource = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Process.Start(BkServiceExeName);
+            await _serviceStartCompletionSource.Task;
+
+            // A start of service means that config has been reloaded.
+            // So reset this sign.
+            IsConfigModified = false;
+        }
+
+        private async void StartButton_Click(object sender, RoutedEventArgs e)
+        {
+            Vm.CanStartOrEndService = false;
+
+            if (IsServiceRunning)
+            {
+                await StopService();
+            }
+            else
+            {
+                await StartService();
+            }
+
+            Vm.CanStartOrEndService = true;
         }
 
         private void RefreshLists()
         {
-            WhiteListDevices = ConfigReadWrite.GetWhiteListDevices();
-            BlackListDevices = ConfigReadWrite.GetBlackListDevices();
+            var configJson = ConfigReadWrite.TryGetConfigJson();
+            WhiteListDevices = ConfigReadWrite.GetWhiteListDevices(configJson);
+            BlackListDevices = ConfigReadWrite.GetBlackListDevices(configJson);
 
             WhiteListView.Items.Refresh();
             BlackListView.Items.Refresh();
@@ -180,6 +253,8 @@ namespace SmartPodVolumeWizard
 
             fromListView.Items.Refresh();
             toListView.Items.Refresh();
+
+            IsConfigModified = true;
         }
 
         private void ForgetDeviceBtn_Click(object sender, RoutedEventArgs e)
@@ -209,10 +284,147 @@ namespace SmartPodVolumeWizard
             Interlocked.Increment(ref _updatesToBeIgnored);
 
             fromListView.Items.Refresh();
+
+            IsConfigModified = true;
         }
 
-        private void ApplyConfigBtn_Click(object sender, RoutedEventArgs e)
+        private async Task RestartService()
         {
+            Vm.CanStartOrEndService = false;
+
+            if (IsServiceRunning)
+            {
+                await StopService();
+            }
+            await StartService();
+
+            Vm.CanStartOrEndService = true;
+        }
+
+        private async void ApplyConfigBtn_Click(object sender, RoutedEventArgs e)
+        {
+            await RestartService();
+        }
+
+        private void CheckBkServiceExeFileExistence()
+        {
+            if (!File.Exists(BkServiceExeName))
+            {
+                MessageBox.Show($"后台服务组件 {BkServiceExeName} 不存在。请确保程序组件齐全且在同一目录下。",
+                    "组件缺失", MessageBoxButton.OK, MessageBoxImage.Error);
+                Close();
+            }
+        }
+
+        private void AutoStartCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (AutoStartCheckBox.IsChecked == true)
+            {
+                try
+                {
+                    RegistryKey regKey = Registry.CurrentUser.OpenSubKey(
+                        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                    regKey.SetValue(AutoStartRegValueName, $"\"{Directory.GetCurrentDirectory().TrimEnd('\\')}\\{BkServiceExeName}\"");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"添加开机自启动项失败（{ex.Message}）", "错误", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                    AutoStartCheckBox.IsChecked = false;
+                }
+            }
+            else
+            {
+                try
+                {
+                    RegistryKey regKey = Registry.CurrentUser.OpenSubKey(
+                        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                    regKey.DeleteValue(AutoStartRegValueName);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"删除开机自启动项失败（{ex.Message}）", "错误", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                    AutoStartCheckBox.IsChecked = true;
+                }
+            }
+        }
+
+        private void ValidateAutoStartOption()
+        {
+            try
+            {
+                RegistryKey regKey = Registry.CurrentUser.OpenSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false);
+                var value = regKey.GetValue(AutoStartRegValueName);
+                AutoStartCheckBox.IsChecked = value != null;
+            }
+            catch { }
+        }
+
+        private async Task BkgndProcessWatcher(CancellationToken token)
+        {
+            const string BkgndProcessPipeName = "D9227EEB_62EB_4903_B4A1_5ACB5D97FCBC";
+            const byte BkgndProcessAliveSignal = 0x84;
+            const byte BkgndProcessStopSignal = 0xfe;
+
+            // use named pipe for interprocess communication
+            // wizard as server
+            using (var pipeStream = new NamedPipeServerStream(BkgndProcessPipeName, PipeDirection.InOut,
+                1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous))
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await pipeStream.WaitForConnectionAsync(token);
+                    }
+                    catch 
+                    {
+                        // maybe should retry certain times here
+                    }
+
+                    if (token.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    // connected, that means, bkgnd process launched
+                    _serviceStartCompletionSource?.TrySetResult(true);
+                    Application.Current.Dispatcher.Invoke(() => { IsServiceRunning = true; });
+
+                    byte[] buffer = new byte[1];
+                    while (!token.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            var bytesRead = await pipeStream.ReadAsync(buffer, 0, buffer.Length, token);
+                            if (bytesRead == buffer.Length)
+                            {
+                                if (buffer[0] == BkgndProcessAliveSignal)
+                                {
+                                    // bkgnd process still alive
+                                    if (_serviceStopRequired)
+                                    {
+                                        buffer[0] = BkgndProcessStopSignal;
+                                        pipeStream.Write(buffer, 0, buffer.Length); // ask bkgnd process to stop
+                                    }
+
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                // client disconnected
+                                break;
+                            }
+                        }
+                        catch { break; }
+                    }
+                    pipeStream.Disconnect(); // reset stream state, so that it can connect again
+
+                    _seviceStopCompletionSource?.TrySetResult(true);
+                    Application.Current?.Dispatcher.Invoke(() => { IsServiceRunning = false; });
+                }
+            }
         }
     }
 }
