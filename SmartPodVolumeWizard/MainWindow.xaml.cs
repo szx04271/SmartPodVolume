@@ -18,6 +18,7 @@ using Microsoft.Win32;
 using System.Reflection;
 using System.Diagnostics;
 using System.IO.Pipes;
+using System.Runtime.Remoting.Messaging;
 
 namespace SmartPodVolumeWizard
 {
@@ -173,9 +174,18 @@ namespace SmartPodVolumeWizard
 
         private async Task StartService()
         {
+            try
+            {
+                Process.Start(BkServiceExeName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"启动后台进程失败（{ex.Message}）", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             _serviceStartCompletionSource = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            Process.Start(BkServiceExeName);
             await _serviceStartCompletionSource.Task;
 
             // A start of service means that config has been reloaded.
