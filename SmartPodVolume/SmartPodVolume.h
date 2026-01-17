@@ -17,8 +17,9 @@
 
 class CSmartPodVolumeApp : public CWinApp
 {
-protected:
+private:
 	std::shared_ptr<spdlog::logger> m_logger;
+	HANDLE m_instanceMutex = nullptr;
 
 public:
 	CSmartPodVolumeApp();

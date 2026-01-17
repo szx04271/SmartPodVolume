@@ -7,6 +7,7 @@
 #include "SmartPodVolume.h"
 #include "SmartPodVolumeDlg.h"
 #include "utils.h"
+#include "constants.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -60,16 +61,36 @@ BOOL CSmartPodVolumeApp::InitInstance()
 #endif
 	spdlog::info(L"SmartPodVolume started.");
 
-	CSmartPodVolumeDlg dlg;
-	// The quick brown fox jumps over the lazy dog.
-	HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-	if (FAILED(hr)) {
-		spdlog::error(L"CoInitializeEx failed: hr=0x{:08X}. Exiting.", hr);
-		::MessageBoxW(nullptr, L"初始化 COM 库失败，程序将退出。", L"SmartPodVolume 错误", MB_ICONERROR);
+	// limit to 1 instance
+	m_instanceMutex = CreateMutexW(nullptr, TRUE, INSTANCE_MUTEX_NAME);
+	if (!m_instanceMutex) {
+		spdlog::error(L"Error creating instance mutex (lasterror={}). Exiting.", GetLastError());
+		::MessageBoxW(nullptr, L"创建互斥体失败，程序将退出。", L"SmartPodVolume 错误", MB_ICONERROR);
+
+		spdlog::info(L"SmartPodVolume ended.");
+		return FALSE;
+	}
+	if (GetLastError() == ERROR_ALREADY_EXISTS) {
+		CloseHandle(m_instanceMutex);
+
+		spdlog::warn("Attempting to launch multiple instances of the program. Exiting.");
+		::MessageBoxW(nullptr, L"SmartPodVolume 后台进程已存在，请勿重复启动。", L"提示", MB_ICONASTERISK);
+
 		spdlog::info(L"SmartPodVolume ended.");
 		return FALSE;
 	}
 
+	HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+	if (FAILED(hr)) {
+		spdlog::error(L"CoInitializeEx failed: hr=0x{:08X}. Exiting.", hr);
+		::MessageBoxW(nullptr, L"初始化 COM 库失败，程序将退出。", L"SmartPodVolume 错误", MB_ICONERROR);
+
+		CloseHandle(m_instanceMutex);
+		spdlog::info(L"SmartPodVolume ended.");
+		return FALSE;
+	}
+
+	CSmartPodVolumeDlg dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
 	/*
@@ -99,6 +120,7 @@ cleanup:
 		CoUninitialize();
 	}
 
+	CloseHandle(m_instanceMutex);
 	spdlog::info(L"SmartPodVolume ended.");
 	// 由于对话框已关闭，所以将返回 FALSE 以便退出应用程序，
 	//  而不是启动应用程序的消息泵�?
