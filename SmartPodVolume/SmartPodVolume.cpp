@@ -58,6 +58,8 @@ BOOL CSmartPodVolumeApp::InitInstance()
 #ifdef _DEBUG
 	spdlog::set_level(spdlog::level::debug);
 	spdlog::flush_on(spdlog::level::debug);
+#else
+	spdlog::flush_on(spdlog::level::warn);
 #endif
 	spdlog::info(L"SmartPodVolume started.");
 

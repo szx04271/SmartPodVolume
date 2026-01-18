@@ -570,13 +570,24 @@ void CSmartPodVolumeDlg::WizardCommunicationProc() noexcept {
 		while (true) {
 			DWORD bytesAvailable = 0;
 			// see if stop signal is sent
-			PeekNamedPipe(hPipe, nullptr, 0, nullptr, &bytesAvailable, nullptr);
+			auto peekSuccess = PeekNamedPipe(hPipe, nullptr, 0, nullptr, &bytesAvailable, nullptr);
+			if (!peekSuccess) {
+				spdlog::warn(L"PeekNamedPipe failed. Assuming disconnection. Error: {}", GetLastError());
+				break;
+			}
+
 			if (bytesAvailable) {
 				BYTE buf[1]{};
 				DWORD bytesRead = 0;
-				if (ReadFile(hPipe, buf, 1, &bytesRead, nullptr) && buf[0] == BKGND_PROCESS_STOP_SIGNAL) {
-					spdlog::info(L"Wizard sent \'stop service\' signal. Exiting.");
-					toStop = true; // exit external loop
+				if (ReadFile(hPipe, buf, 1, &bytesRead, nullptr)) {
+					if (buf[0] == BKGND_PROCESS_STOP_SIGNAL) {
+						spdlog::info(L"Wizard sent \'stop service\' signal. Exiting.");
+						toStop = true; // exit external loop
+						break;
+					}
+				}
+				else {
+					spdlog::warn(L"ReadFile failed. Assuming disconnection. Error: {}", GetLastError());
 					break;
 				}
 			}
@@ -584,14 +595,19 @@ void CSmartPodVolumeDlg::WizardCommunicationProc() noexcept {
 			// send alive signal
 			DWORD _;
 			auto writeSuccess = WriteFile(hPipe, aliveSignalBuf, 1, &_, nullptr);
-			if (!writeSuccess && GetLastError() == ERROR_NO_DATA) {
-				// server(wizard) died
-				spdlog::info(L"Wizard is closed. Waiting for next server connection.");
+			// According to Google Gemini 3 Pro,
+			// there can be many possibilities of error code on disconnection.
+			// So once this fails we assume disconnection without checking error code.
+			if (!writeSuccess) {
+				spdlog::warn(L"ReadFile failed. Assuming disconnection. Error: {}", GetLastError());
 				break;
 			}
 
 			Sleep(1000);
 		}
+
+		// server(wizard) died (at least in assumption)
+		spdlog::info(L"Wizard is closed. Waiting for next server connection.");
 
 		CloseHandle(hPipe);
 	}
