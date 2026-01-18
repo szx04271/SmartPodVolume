@@ -13,13 +13,13 @@ os.makedirs(X86_PUBLISH_DIR, exist_ok=True)
 previous_files = os.listdir(X64_PUBLISH_DIR)
 for file in previous_files:
     full_path = pathlib.Path(os.path.join(X64_PUBLISH_DIR, file))
-    if full_path.suffix not in (".7z"):
+    if full_path.suffix not in (".7z", ".txt", ".zip", ".rar"):
         os.remove(full_path)
 
 previous_files = os.listdir(X86_PUBLISH_DIR)
 for file in previous_files:
     full_path = pathlib.Path(os.path.join(X86_PUBLISH_DIR, file))
-    if full_path.suffix not in (".7z"):
+    if full_path.suffix not in (".7z", ".txt", ".zip", ".rar"):
         os.remove(full_path)
 
 files = os.listdir(X64_BUILD_DIR)
