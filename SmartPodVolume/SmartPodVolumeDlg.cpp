@@ -45,6 +45,7 @@ BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_MESSAGE(WM_NEWDEVICEDLG_CLOSED, &CSmartPodVolumeDlg::OnNewdevicedlgClosed)
 	ON_MESSAGE(WM_NEW_DEVICE_NEEDS_REGISTRATION, &CSmartPodVolumeDlg::OnNewDeviceNeedsRegistration)
 	ON_WM_QUERYENDSESSION()
+	ON_WM_WINDOWPOSCHANGING()
 END_MESSAGE_MAP()
 
 
@@ -227,8 +228,9 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
 
 	CNewDeviceDlg* dlg = new CNewDeviceDlg(info, CComPtr<IMMDevice>());
 	dlg->m_dontNotifyMainWndOnDestroy = true;
-	dlg->Create(IDD_NEW_DEVICE);
+	dlg->Create(IDD_NEW_DEVICE, GetDesktopWindow());
 	dlg->ShowWindow(SW_SHOWNORMAL);
+	dlg->SetForegroundWindow();
 }
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
@@ -238,8 +240,9 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
 	info.id = L"{YYYYYYY}.{YYYYYYYYYYYYYYYYYYYYYYYYYYYYYY}";
 
 	CVolumeSetFailDlg* dlg = new CVolumeSetFailDlg(E_NOTIMPL, info);
-	dlg->Create(IDD_VOLUME_SET_FAIL);
+	dlg->Create(IDD_VOLUME_SET_FAIL, GetDesktopWindow());
 	dlg->ShowWindow(SW_SHOWNORMAL);
+	dlg->SetForegroundWindow();
 }
 
 CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device) {
@@ -434,8 +437,9 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 
 					if (!failBecauseInvalidConfig && FAILED(hr)) {
 						CVolumeSetFailDlg* setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
-						setFailDlg->Create(IDD_VOLUME_SET_FAIL);
+						setFailDlg->Create(IDD_VOLUME_SET_FAIL, GetDesktopWindow());
 						setFailDlg->ShowWindow(SW_SHOWNORMAL);
+						setFailDlg->SetForegroundWindow();
 					}
 				}
 				else {
@@ -465,8 +469,9 @@ void CSmartPodVolumeDlg::OnNewMmDevice(const utils::MmDeviceInfo& info, const CC
 	spdlog::info(L"This is a new device. Asking user for choice.");
 	auto newDeviceDlg = new CNewDeviceDlg(info, device);
 	m_newMmDeviceWindows[lowerId] = newDeviceDlg;
-	newDeviceDlg->Create(IDD_NEW_DEVICE);
+	newDeviceDlg->Create(IDD_NEW_DEVICE, GetDesktopWindow());
 	newDeviceDlg->ShowWindow(SW_SHOWNORMAL);
+	newDeviceDlg->SetForegroundWindow();
 }
 
 afx_msg LRESULT CSmartPodVolumeDlg::OnRegisteredDeviceVolumeChanged(WPARAM wParam, LPARAM lParam) {
@@ -608,4 +613,9 @@ BOOL CSmartPodVolumeDlg::OnQueryEndSession() {
 	return TRUE;
 }
 
+void CSmartPodVolumeDlg::OnWindowPosChanging(WINDOWPOS* lpwndpos) {
+	CDialog::OnWindowPosChanging(lpwndpos);
 
+	// hide main window
+	lpwndpos->flags &= ~SWP_SHOWWINDOW;
+}

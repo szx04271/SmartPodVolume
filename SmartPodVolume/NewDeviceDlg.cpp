@@ -18,7 +18,7 @@ CNewDeviceDlg::CNewDeviceDlg(const utils::MmDeviceInfo& info, const CComPtr<IMMD
 	m_device(device),
 	m_dontNotifyMainWndOnDestroy(false)
 {
-
+	
 }
 
 CNewDeviceDlg::~CNewDeviceDlg() {
@@ -45,7 +45,6 @@ BOOL CNewDeviceDlg::OnInitDialog() {
 	CDialog::OnInitDialog();
 
 	GetSystemMenu(FALSE)->EnableMenuItem(SC_CLOSE, MF_GRAYED | MF_BYCOMMAND);
-
 	m_deviceInfoReport.SetDeviceInfo(m_mmDeviceInfo);
 
 	return TRUE;  // return TRUE unless you set the focus to a control

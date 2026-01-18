@@ -81,4 +81,5 @@ public:
 	bool SaveAllVolumes() noexcept;
 	
 	void WizardCommunicationProc() noexcept;
+	afx_msg void OnWindowPosChanging(WINDOWPOS* lpwndpos);
 };

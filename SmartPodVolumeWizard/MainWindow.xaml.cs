@@ -196,9 +196,6 @@ namespace SmartPodVolumeWizard
             await _servStartCompletionSrc.Task;
 
             Interlocked.Exchange(ref _servStartCompletionSrc, null);
-            // A start of service means that config has been reloaded.
-            // So reset this sign.
-            IsConfigModified = false;
         }
 
         private async void StartButton_Click(object sender, RoutedEventArgs e)
@@ -407,7 +404,14 @@ namespace SmartPodVolumeWizard
 
                     // connected, that means, bkgnd process launched
                     _servStartCompletionSrc?.TrySetResult(true);
-                    Application.Current.Dispatcher.Invoke(() => { IsServiceRunning = true; });
+                    Application.Current.Dispatcher.Invoke(() => 
+                    {
+                        // A start of service means that config has been reloaded.
+                        // So reset this sign.
+                        IsConfigModified = false;
+
+                        IsServiceRunning = true; 
+                    });
 
                     byte[] buffer = new byte[1];
                     while (!token.IsCancellationRequested)
