@@ -21,12 +21,6 @@ namespace SmartPodVolumeWizard
         public App()
         {
             this.Startup += App_Startup;
-            this.Exit += App_Exit;
-        }
-
-        private void App_Exit(object sender, ExitEventArgs e)
-        {
-            throw new NotImplementedException();
         }
 
         private void App_Startup(object sender, StartupEventArgs e)

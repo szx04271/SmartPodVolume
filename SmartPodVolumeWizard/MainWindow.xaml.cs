@@ -38,7 +38,7 @@ namespace SmartPodVolumeWizard
 
         // volatile 使对该变量的赋值立即反映到内存中，防止子线程读到缓存值
         volatile bool _serviceStopRequired = false;
-        TaskCompletionSource<bool> _seviceStopCompletionSource, _serviceStartCompletionSource;
+        volatile TaskCompletionSource<bool> _servStopCompletionSrc, _servStartCompletionSrc;
 
         CancellationTokenSource _cts = new CancellationTokenSource();
         Task _bkgndProcessWatcherTask = null;
@@ -165,15 +165,24 @@ namespace SmartPodVolumeWizard
 
         private async Task StopService()
         {
-            _seviceStopCompletionSource = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+            var src = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Interlocked.Exchange(ref _servStopCompletionSrc, src);
+
             _serviceStopRequired = true;
-            await _seviceStopCompletionSource.Task;
+            // 若想更稳，可以再开个后台线程，每隔一秒检测两个TaskCompletionSource的值，
+            // 如果不为null，则根据IsServiceRunning的值来触发其一，这样能彻底避免错过了
+            // BkgndProcessWatcher 发的信号从而无限期等下去的await。
+            await _servStopCompletionSrc.Task;
             _serviceStopRequired = false;
+
+            Interlocked.Exchange(ref _servStopCompletionSrc, null);
         }
 
         private async Task StartService()
         {
+            var src = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Interlocked.Exchange(ref _servStartCompletionSrc, src);
+
             try
             {
                 Process.Start(BkServiceExeName);
@@ -184,10 +193,9 @@ namespace SmartPodVolumeWizard
                 return;
             }
 
-            _serviceStartCompletionSource = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            await _serviceStartCompletionSource.Task;
+            await _servStartCompletionSrc.Task;
 
+            Interlocked.Exchange(ref _servStartCompletionSrc, null);
             // A start of service means that config has been reloaded.
             // So reset this sign.
             IsConfigModified = false;
@@ -398,7 +406,7 @@ namespace SmartPodVolumeWizard
                     }
 
                     // connected, that means, bkgnd process launched
-                    _serviceStartCompletionSource?.TrySetResult(true);
+                    _servStartCompletionSrc?.TrySetResult(true);
                     Application.Current.Dispatcher.Invoke(() => { IsServiceRunning = true; });
 
                     byte[] buffer = new byte[1];
@@ -431,7 +439,7 @@ namespace SmartPodVolumeWizard
                     }
                     pipeStream.Disconnect(); // reset stream state, so that it can connect again
 
-                    _seviceStopCompletionSource?.TrySetResult(true);
+                    _servStopCompletionSrc?.TrySetResult(true);
                     Application.Current?.Dispatcher.Invoke(() => { IsServiceRunning = false; });
                 }
             }

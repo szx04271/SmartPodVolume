@@ -537,17 +537,25 @@ void CSmartPodVolumeDlg::WizardCommunicationProc() noexcept {
 	
 	// in sub thread, dont operate UI directly
 	while (!toStop) {
-		WaitNamedPipeW(BKGND_PROCESS_PIPE_NAME, INFINITE);
+		WaitNamedPipeW(BKGND_PROCESS_PIPE_NAME, NMPWAIT_WAIT_FOREVER);
 		HANDLE hPipe = CreateFileW(BKGND_PROCESS_PIPE_NAME, GENERIC_READ | GENERIC_WRITE, 0, nullptr,
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 		if (hPipe == INVALID_HANDLE_VALUE) {
-			spdlog::warn(L"CreateFileW (for pipe) failed, lasterror={}. Retry times remaining: {}", GetLastError(),
-				retryRemining);
-			if (retryRemining == 0) {
-				break;
+			auto err = GetLastError();
+			if (err == ERROR_FILE_NOT_FOUND) {
+				// server(wizard) not running
+				Sleep(1000);
+				continue;
 			}
-			--retryRemining;
-			continue;
+			else {
+				spdlog::warn(L"CreateFileW (for pipe) failed, lasterror={}. Retry times remaining: {}", err,
+					retryRemining);
+				if (retryRemining == 0) {
+					break;
+				}
+				--retryRemining;
+				continue;
+			}
 		}
 
 		spdlog::info(L"Successfully connected to wizard.");
@@ -560,7 +568,7 @@ void CSmartPodVolumeDlg::WizardCommunicationProc() noexcept {
 				BYTE buf[1]{};
 				DWORD bytesRead = 0;
 				if (ReadFile(hPipe, buf, 1, &bytesRead, nullptr) && buf[0] == BKGND_PROCESS_STOP_SIGNAL) {
-					spdlog::info(L"Wizard sent `stop service` signal. Exiting.");
+					spdlog::info(L"Wizard sent \'stop service\' signal. Exiting.");
 					toStop = true; // exit external loop
 					break;
 				}
@@ -569,7 +577,7 @@ void CSmartPodVolumeDlg::WizardCommunicationProc() noexcept {
 			// send alive signal
 			DWORD _;
 			auto writeSuccess = WriteFile(hPipe, aliveSignalBuf, 1, &_, nullptr);
-			if (!writeSuccess && GetLastError() == ERROR_BROKEN_PIPE) {
+			if (!writeSuccess && GetLastError() == ERROR_NO_DATA) {
 				// server(wizard) died
 				spdlog::info(L"Wizard is closed. Waiting for next server connection.");
 				break;
