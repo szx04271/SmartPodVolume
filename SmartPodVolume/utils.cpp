@@ -245,7 +245,7 @@ namespace utils {
 		return ret;
 	}
 
-	std::wstring GetRealCurrentDirectory() noexcept {
+	std::wstring GetCurrentDirectory_() noexcept {
 		constexpr size_t BUFFER_LEN = 1024;
 		std::unique_ptr<WCHAR[]> buffer = std::make_unique<WCHAR[]>(BUFFER_LEN);
 		std::wstring ret;
@@ -263,7 +263,7 @@ namespace utils {
 	std::string ReadConfigFile() noexcept {
 		std::string ret;
 
-		auto filePath = GetRealCurrentDirectory();
+		auto filePath = GetCurrentDirectory_();
 		if (filePath.empty()) {
 			spdlog::error(L"Error opening config file (can't get current dir)");
 			return ret;
@@ -304,7 +304,7 @@ namespace utils {
 			}
 			catch (std::exception& e) {
 				spdlog::warn(L"Bad config content ({}). Deleting...", utils::AcpToWc(e.what()));
-				DeleteFileW((utils::GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str());
+				DeleteFileW((utils::GetCurrentDirectory_() + CONFIG_FILE_NAME).c_str());
 				j = json();
 			}
 		}
@@ -382,7 +382,7 @@ namespace utils {
 
 	bool WriteConfigFile(std::string_view configString) noexcept {
 		FILE* file = nullptr;
-		auto err = _wfopen_s(&file, (GetRealCurrentDirectory() + CONFIG_FILE_NAME).c_str(), L"wb");
+		auto err = _wfopen_s(&file, (GetCurrentDirectory_() + CONFIG_FILE_NAME).c_str(), L"wb");
 		if (err) {
 			spdlog::error(L"Error opening config file for writing (errno={}).", err);
 			return false;
@@ -404,10 +404,15 @@ namespace utils {
 	{
 		constexpr size_t BUFFER_LEN = 1024;
 		std::unique_ptr<WCHAR[]> buffer = std::make_unique<WCHAR[]>(BUFFER_LEN);
-		auto cchWritten = GetCurrentDirectoryW(BUFFER_LEN, buffer.get());
-		if (!cchWritten) {
+		DWORD len = GetModuleFileNameW(nullptr, buffer.get(), BUFFER_LEN);
+		if (len == 0) {
 			return false;
 		}
+		WCHAR* ptr = buffer.get() + len - 1;
+		while (*ptr != L'\\') {
+			--ptr;
+		}
+		ptr[1] = 0;
 
 		return SetCurrentDirectoryW(buffer.get());
 	}

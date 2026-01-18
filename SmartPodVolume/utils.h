@@ -36,7 +36,7 @@ namespace utils {
 	std::wstring AcpToWc(std::string_view acpStr) noexcept;
 
 	// with '\\'
-	std::wstring GetRealCurrentDirectory() noexcept;
+	std::wstring GetCurrentDirectory_() noexcept;
 
 	std::string ReadConfigFile() noexcept;
 
