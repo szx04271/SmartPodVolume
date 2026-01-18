@@ -375,6 +375,12 @@ namespace SmartPodVolumeWizard
             catch { }
         }
 
+        private void GithubRepoLink_Click(object sender, RoutedEventArgs e)
+        {
+            var link = sender as Hyperlink;
+            Process.Start(new ProcessStartInfo(link.NavigateUri.AbsoluteUri));
+        }
+
         private async Task BkgndProcessWatcher(CancellationToken token)
         {
             const string BkgndProcessPipeName = "D9227EEB_62EB_4903_B4A1_5ACB5D97FCBC";

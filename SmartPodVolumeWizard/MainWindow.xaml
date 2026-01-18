@@ -6,8 +6,8 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:SmartPodVolumeWizard"
         mc:Ignorable="d"
-        Width="410" Height="300"
-        MinWidth="400" MinHeight="250"
+        Width="410" Height="320"
+        MinWidth="400" MinHeight="270"
         WindowStartupLocation="CenterScreen">
 
     <Window.DataContext>
@@ -74,7 +74,11 @@
             </StackPanel>
         </DockPanel>
         <CheckBox x:Name="AutoStartCheckBox" DockPanel.Dock="Top" Margin="{StaticResource StackSpacingVert}" Content="用户登录时尝试自启动后台服务" Click="AutoStartCheckBox_Click" />
-        <DockPanel DockPanel.Dock="Bottom" LastChildFill="False">
+        <TextBlock DockPanel.Dock="Bottom" TextAlignment="Left">
+            版本 2026.1.18.1 | 作者 szx0427 | 
+            <Hyperlink x:Name="GithubRepoLink" NavigateUri="https://github.com/szx04271/SmartPodVolume" Click="GithubRepoLink_Click">github仓库</Hyperlink>
+        </TextBlock>
+        <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="{StaticResource StackSpacingVert}">
             <TextBlock VerticalAlignment="Center" Text="更改设置后需重启后台服务才能完全生效。" DockPanel.Dock="Left" />
             <Button x:Name="ApplyConfigBtn" DockPanel.Dock="Right" Padding="3" Content="重启服务" Width="100"
                     FontWeight="Bold" Click="ApplyConfigBtn_Click" IsEnabled="{Binding CanStartOrEndService}" />

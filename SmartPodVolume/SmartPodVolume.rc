@@ -125,8 +125,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,1
- PRODUCTVERSION 1,0,0,1
+ FILEVERSION 2026,1,18,1
+ PRODUCTVERSION 2026,1,18,1
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -139,16 +139,16 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "080404B0"
+        BLOCK "080404b0"
         BEGIN
-            VALUE "CompanyName", "TODO: <lQST>"
-            VALUE "FileDescription", "SmartPodVolume"
-            VALUE "FileVersion", "1.0.0.1"
+            VALUE "CompanyName", "szx0427"
+            VALUE "FileDescription", "SmartPodVolume 后台进程"
+            VALUE "FileVersion", "2026.1.18.1"
             VALUE "InternalName", "SmartPodVolume.exe"
-            VALUE "LegalCopyright", "TODO:  (C) <lQST>0OYu@bgCg)R0"
+            VALUE "LegalCopyright", "Copyright ? 2026 szx0427"
             VALUE "OriginalFilename", "SmartPodVolume.exe"
-            VALUE "ProductName", "TODO: <NTT>"
-            VALUE "ProductVersion", "1.0.0.1"
+            VALUE "ProductName", "SmartPodVolume"
+            VALUE "ProductVersion", "2026.1.18.1"
         END
     END
     BLOCK "VarFileInfo"
