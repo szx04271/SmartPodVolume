@@ -137,7 +137,7 @@ void CNewDeviceDlg::OnBnClickedYes() {
 				m_mmDeviceInfo.id, hr);
 		}
 
-		bool writeSuccess = utils::WriteConfigFile(configJson.dump());
+		bool writeSuccess = utils::WriteConfigJson(configJson);
 		if (writeSuccess) {
 			spdlog::info(L"Successfully wrote initial config for new mmDevice {}", m_mmDeviceInfo.id);
 		}
@@ -181,7 +181,7 @@ void CNewDeviceDlg::OnBnClickedNo() {
 			{conf_key::FRIENDLY_NAME, utils::WcToU8(m_mmDeviceInfo.friendlyName)}
 		};
 
-		bool writeSuccess = utils::WriteConfigFile(configJson.dump());
+		bool writeSuccess = utils::WriteConfigJson(configJson);
 		if (writeSuccess) {
 			spdlog::info(L"Successfully added device {} into blacklist.", m_mmDeviceInfo.id);
 		}

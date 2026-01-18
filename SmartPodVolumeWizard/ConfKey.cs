@@ -9,8 +9,8 @@ namespace SmartPodVolumeWizard
 {
     internal class ConfKey
     {
-        public const string Blacklist = "blacklist"; // array
-        public const string Whitelist = "whitelist"; // array
+        public const string Blacklist = "blacklist"; // object
+        public const string Whitelist = "whitelist"; // object
 
         public const string FriendlyName = "friendly_name"; // string
         public const string ExpectedVolume = "expected_vol"; // float

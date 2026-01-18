@@ -477,7 +477,7 @@ afx_msg LRESULT CSmartPodVolumeDlg::OnRegisteredDeviceVolumeChanged(WPARAM wPara
 
 	auto callback = (MyVolumeChangeCallback*)wParam;
 	m_volumesToBeSaved[callback->GetLowercaseDeviceId()] = callback->m_volumeInfo;
-	SetTimer(AUTO_SAVE_CONFIG_TIMER_ID, 10000, nullptr); // this resets the timer before sets it
+	SetTimer(AUTO_SAVE_CONFIG_TIMER_ID, 5000, nullptr); // this resets the timer before sets it
 
 	return 0;
 }
@@ -512,10 +512,12 @@ bool CSmartPodVolumeDlg::SaveAllVolumes() noexcept {
 			deviceJson[conf_key::MUTE] = info.mute;
 		}
 
-		auto configString = configJson.dump();
-		auto writeSuccess = utils::WriteConfigFile(configString);
+		auto writeSuccess = utils::WriteConfigJson(configJson);
 		if (!writeSuccess) {
 			spdlog::error(L"Auto save config failed. Try again 10 seconds later.");
+		}
+		else {
+			m_volumesToBeSaved.clear();
 		}
 		return writeSuccess;
 	}

@@ -117,7 +117,7 @@ void CVolumeSetFailDlg::OnBnClickedYes() {
 			{conf_key::DESCRIPTION, utils::WcToU8(m_mmDeviceInfo.description)}
 		};
 
-		bool writeSuccess = utils::WriteConfigFile(configJson.dump());
+		bool writeSuccess = utils::WriteConfigJson(configJson);
 		if (writeSuccess) {
 			spdlog::info(L"Successfully moved device {} from whitelist to blacklist", m_mmDeviceInfo.id);
 		}

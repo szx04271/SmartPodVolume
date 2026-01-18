@@ -104,5 +104,9 @@ namespace utils {
 
 	// Set working dir to where the exe is actually located.
 	bool SetWorkingDirToExeDir() noexcept;
+
+	inline bool WriteConfigJson(const json& configJson) {
+		return WriteConfigFile(configJson.dump(4));
+	}
 }
 
