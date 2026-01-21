@@ -48,5 +48,5 @@ using System.Windows;
 //      生成号
 //      修订号
 //
-[assembly: AssemblyVersion("2026.1.18.1")]
-[assembly: AssemblyFileVersion("2026.1.18.1")]
+[assembly: AssemblyVersion("2026.1.21.1")]
+[assembly: AssemblyFileVersion("2026.1.21.1")]

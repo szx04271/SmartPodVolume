@@ -74,8 +74,8 @@
             </StackPanel>
         </DockPanel>
         <CheckBox x:Name="AutoStartCheckBox" DockPanel.Dock="Top" Margin="{StaticResource StackSpacingVert}" Content="用户登录时尝试自启动后台服务" Click="AutoStartCheckBox_Click" />
-        <TextBlock DockPanel.Dock="Bottom" TextAlignment="Left">
-            版本 2026.1.18.1 | 作者 szx0427 | 
+        <TextBlock DockPanel.Dock="Bottom" TextAlignment="Center">
+            作者 szx0427 | 
             <Hyperlink x:Name="GithubRepoLink" NavigateUri="https://github.com/szx04271/SmartPodVolume" Click="GithubRepoLink_Click">github仓库</Hyperlink>
         </TextBlock>
         <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="{StaticResource StackSpacingVert}">

@@ -215,11 +215,11 @@ void CSmartPodVolumeDlg::OnDestroy() {
 	if (m_hDevNotify) {
 		UnregisterDeviceNotification(m_hDevNotify);
 		m_hDevNotify = nullptr;
-		spdlog::info(L"Unregistered device notification.");
+		spdlog::info(L"Unregistered all device notifications because the program is being closed.");
 	}
 
 	UnregisterAllVolumeNotifications();
-	spdlog::info(L"Unregistered volume notification.");
+	spdlog::info(L"Unregistered all volume notifications because the program is being closed.");
 
 	if (m_volumesToBeSaved.size()) {
 		SaveAllVolumes();
@@ -313,6 +313,7 @@ CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotifica
 
 	m_volumesToBeSaved[callback->GetLowercaseDeviceId()] = callback->m_volumeInfo;
 	SaveAllVolumes();
+	spdlog::debug(L"saved vol {}%", callback->m_volumeInfo.volumePercent);
 	//SendMessageW(WM_REGISTERED_DEVICE_VOLUME_CHANGED, (WPARAM)&callback, 0);
 
 	return ret;

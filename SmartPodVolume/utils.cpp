@@ -343,7 +343,8 @@ namespace utils {
 			if (0.f <= expectedVol && expectedVol <= 100.f) {
 				spdlog::info(L"Expected vol: {}%", expectedVol);
 				volumeConfigValid = true;
-				hr = endpointVol->SetMasterVolumeLevelScalar(expectedVol / 100.f, nullptr);
+				// pass our GUID so that our volume change callback can ignore
+				hr = endpointVol->SetMasterVolumeLevelScalar(expectedVol / 100.f, &VOLUME_SETTER_GUID);
 			}
 		}
 		if (!volumeConfigValid) {
