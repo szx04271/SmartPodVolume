@@ -12,7 +12,7 @@ STDMETHODIMP MyVolumeChangeCallback::QueryInterface(REFIID riid, void** ppv) {
 }
 
 STDMETHODIMP_(ULONG) MyVolumeChangeCallback::AddRef() {
-	return InterlockedIncrement(&m_refCount);
+	return (ULONG)InterlockedIncrement(&m_refCount);
 }
 
 STDMETHODIMP_(ULONG) MyVolumeChangeCallback::Release() {
@@ -21,11 +21,13 @@ STDMETHODIMP_(ULONG) MyVolumeChangeCallback::Release() {
 		spdlog::info(L"MyVolumeChangeCallback of id={} is being destructed.", m_deviceId);
 		delete this;
 	}
-	return ref_count;
+	return (ULONG)ref_count;
 }
 
 HRESULT STDMETHODCALLTYPE MyVolumeChangeCallback::OnNotify(PAUDIO_VOLUME_NOTIFICATION_DATA pNotify) noexcept {
-	spdlog::info(L"[VOL or MUTE CHANGED] id={} vol={} mute={}", m_deviceId, pNotify->fMasterVolume * 100.0f,
+	// in subthread
+
+	spdlog::info(L"thrid={} [VOL or MUTE CHANGED] id={} vol={} mute={}", GetCurrentThreadId(), m_deviceId, pNotify->fMasterVolume * 100.0f,
 		pNotify->bMuted ? true : false);
 
 	// In view that the user is likely to adjust volume many times in a few seconds,

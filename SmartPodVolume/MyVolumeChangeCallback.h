@@ -11,7 +11,7 @@ public:
 	} m_volumeInfo;
 
 private:
-    ULONG m_refCount;
+    long volatile m_refCount;
 
     // always lowercase
     utils::LowercaseIdType m_deviceId;

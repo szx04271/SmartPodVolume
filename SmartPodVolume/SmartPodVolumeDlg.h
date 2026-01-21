@@ -63,7 +63,7 @@ public:
 	struct RegisteredDevice 
 	{
 		CComPtr<IAudioEndpointVolume> endpointVolume;
-		MyVolumeChangeCallback* callback;
+		CComPtr<MyVolumeChangeCallback> callback;
 	};
 	// key is mmDevice id in LOWERCASE
 	std::map<utils::LowercaseIdType, RegisteredDevice> m_registeredCallbacks;

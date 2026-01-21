@@ -203,6 +203,7 @@ void CSmartPodVolumeDlg::OnDeviceRemoved(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 	}
 
 	if (!m_volumesToBeSaved.empty()) {
+		spdlog::info(L"There are {} volumes to be saved till now. Saving them all...", m_volumesToBeSaved.size());
 		SaveAllVolumes();
 		KillTimer(AUTO_SAVE_CONFIG_TIMER_ID);
 	}
@@ -272,12 +273,16 @@ CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotifica
 		return nullptr;
 	}
 
-	MyVolumeChangeCallback* callback = new MyVolumeChangeCallback(id.get());
+	// CComPtr constructor `CComPtr<T>(T* p)` DOES AddRef!!!!
+	// So don't use `CComPtr<T> ptr(new T)` which will cause ptr's initial ref count is 2
+	// and will only be `Release`d once!
+	CComPtr<MyVolumeChangeCallback> callback;
+	callback.Attach(new MyVolumeChangeCallback(id.get())); // `Attach` does NOT AddRef
+
 	hr = endpointVolume->RegisterControlChangeNotify(callback);
 	if (FAILED(hr)) {
 		spdlog::error(L"RegisterControlChangeNotify (for device with id={}) failed (hr={})",
 			id.get(), hr);
-		callback->Release();
 		return nullptr;
 	}
 
@@ -383,7 +388,6 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 void CSmartPodVolumeDlg::UnregisterAllVolumeNotifications() {
 	for (auto& [_, deviceInfo] : m_registeredCallbacks) {
 		deviceInfo.endpointVolume->UnregisterControlChangeNotify(deviceInfo.callback);
-		deviceInfo.callback->Release();
 	}
 }
 
