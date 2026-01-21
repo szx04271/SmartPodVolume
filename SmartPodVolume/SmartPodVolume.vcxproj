@@ -205,6 +205,7 @@
     <ClInclude Include="SmartPodVolume.h" />
     <ClInclude Include="SmartPodVolumeDlg.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="TopPopupDialog.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="VolumeSetFailDlg.h" />
   </ItemGroup>
@@ -220,6 +221,7 @@
     </ClCompile>
     <ClCompile Include="SmartPodVolume.cpp" />
     <ClCompile Include="SmartPodVolumeDlg.cpp" />
+    <ClCompile Include="TopPopupDialog.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="VolumeSetFailDlg.cpp" />
   </ItemGroup>

@@ -59,6 +59,12 @@ BOOL CSmartPodVolumeDlg::OnInitDialog() {
 	SetIcon(m_hIcon, TRUE);			// 设置大图��?
 	SetIcon(m_hIcon, FALSE);		// 设置小图��?
 
+	if (__argc == 2 && !wcscmp(__wargv[1], L"--test-mode")) {
+		m_testMode = true;
+
+		EnableWindow(TRUE);
+	}
+
 	DEV_BROADCAST_DEVICEINTERFACE_W notificationFilter = {};
 	notificationFilter.dbcc_size = sizeof(notificationFilter);
 	notificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
@@ -228,9 +234,7 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayNewDeviceDialog() {
 
 	CNewDeviceDlg* dlg = new CNewDeviceDlg(info, CComPtr<IMMDevice>());
 	dlg->m_dontNotifyMainWndOnDestroy = true;
-	dlg->Create(IDD_NEW_DEVICE, GetDesktopWindow());
-	dlg->ShowWindow(SW_SHOWNORMAL);
-	dlg->SetForegroundWindow();
+	dlg->DoNonModal();
 }
 
 void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
@@ -240,9 +244,7 @@ void CSmartPodVolumeDlg::OnBnClickedDisplayVolumeSetFailDialog() {
 	info.id = L"{YYYYYYY}.{YYYYYYYYYYYYYYYYYYYYYYYYYYYYYY}";
 
 	CVolumeSetFailDlg* dlg = new CVolumeSetFailDlg(E_NOTIMPL, info);
-	dlg->Create(IDD_VOLUME_SET_FAIL, GetDesktopWindow());
-	dlg->ShowWindow(SW_SHOWNORMAL);
-	dlg->SetForegroundWindow();
+	dlg->DoNonModal();
 }
 
 CSmartPodVolumeDlg::RegisteredDevice* CSmartPodVolumeDlg::RegisterVolumeNotification(IMMDevice* device) {
@@ -348,7 +350,7 @@ void CSmartPodVolumeDlg::RegisterVolumeNotificationsForAllKnown() {
 	}
 
 	try {
-		auto j = utils::GetConfigJson(); // TODO: optimize this to avoid reading disk too frequently
+		auto j = utils::GetConfigJson();
 		if (!j.is_object()) {
 			return;
 		}
@@ -437,9 +439,7 @@ void CSmartPodVolumeDlg::OnDeviceArrived(PDEV_BROADCAST_DEVICEINTERFACE_W devInf
 
 					if (!failBecauseInvalidConfig && FAILED(hr)) {
 						CVolumeSetFailDlg* setFailDlg = new CVolumeSetFailDlg(hr, *mmDeviceInfo);
-						setFailDlg->Create(IDD_VOLUME_SET_FAIL, GetDesktopWindow());
-						setFailDlg->ShowWindow(SW_SHOWNORMAL);
-						setFailDlg->SetForegroundWindow();
+						setFailDlg->DoNonModal();
 					}
 				}
 				else {
@@ -469,9 +469,7 @@ void CSmartPodVolumeDlg::OnNewMmDevice(const utils::MmDeviceInfo& info, const CC
 	spdlog::info(L"This is a new device. Asking user for choice.");
 	auto newDeviceDlg = new CNewDeviceDlg(info, device);
 	m_newMmDeviceWindows[lowerId] = newDeviceDlg;
-	newDeviceDlg->Create(IDD_NEW_DEVICE, GetDesktopWindow());
-	newDeviceDlg->ShowWindow(SW_SHOWNORMAL);
-	newDeviceDlg->SetForegroundWindow();
+	newDeviceDlg->DoNonModal();
 }
 
 afx_msg LRESULT CSmartPodVolumeDlg::OnRegisteredDeviceVolumeChanged(WPARAM wParam, LPARAM lParam) {
@@ -632,6 +630,8 @@ BOOL CSmartPodVolumeDlg::OnQueryEndSession() {
 void CSmartPodVolumeDlg::OnWindowPosChanging(WINDOWPOS* lpwndpos) {
 	CDialog::OnWindowPosChanging(lpwndpos);
 
-	// hide main window
-	lpwndpos->flags &= ~SWP_SHOWWINDOW;
+	if (!m_testMode) {
+		// hide main window
+		lpwndpos->flags &= ~SWP_SHOWWINDOW;
+	}
 }

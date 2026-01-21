@@ -1,16 +1,16 @@
 ﻿#pragma once
 #include "DeviceInfoListCtrl.h"
 #include "utils.h"
-
+#include "TopPopupDialog.h"
 
 // CVolumeSetFailDlg 对话框
 
-class CVolumeSetFailDlg : public CDialog
+class CVolumeSetFailDlg : public CTopPopupDialog
 {
 	DECLARE_DYNAMIC(CVolumeSetFailDlg)
 
 public:
-	CVolumeSetFailDlg(HRESULT hr, const utils::MmDeviceInfo& deviceInfo, CWnd* pParent = nullptr);   // 标准构造函数
+	CVolumeSetFailDlg(HRESULT hr, const utils::MmDeviceInfo& deviceInfo);   // 标准构造函数
 	virtual ~CVolumeSetFailDlg();
 
 // 对话框数据
@@ -27,14 +27,9 @@ public:
 
 	CDeviceInfoListCtrl m_deviceInfoReport;
 	utils::MmDeviceInfo m_mmDeviceInfo;
-	virtual void PostNcDestroy();
-	virtual void OnOK();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	CString m_errCodeString;
 	virtual BOOL OnInitDialog();
-	afx_msg void OnClose();
-	virtual BOOL PreTranslateMessage(MSG* pMsg);
-	virtual void OnCancel();
 	afx_msg void OnBnClickedYes();
 	afx_msg void OnBnClickedNo();
 };

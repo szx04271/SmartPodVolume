@@ -108,5 +108,26 @@ namespace utils {
 	inline bool WriteConfigJson(const json& configJson) {
 		return WriteConfigFile(configJson.dump(4));
 	}
+
+	// this should be called for each control of a window expected to be dark
+	inline auto SetControlDarkTheme(HWND hControl) noexcept {
+		return SetWindowTheme(hControl, L"DarkMode_Explorer", nullptr);
+	}
+
+	inline bool IsSystemDarkThemeEnabled() noexcept {
+		DWORD value = -1;
+
+		DWORD size = sizeof(value);
+		if (RegGetValueW(HKEY_CURRENT_USER,
+			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+			L"AppsUseLightTheme",
+			RRF_RT_REG_DWORD,
+			nullptr,
+			&value,
+			&size) == ERROR_SUCCESS) {
+			return (value == 0);
+		}
+		return false;
+	}
 }
 

@@ -9,10 +9,10 @@
 
 // CVolumeSetFailDlg 对话框
 
-IMPLEMENT_DYNAMIC(CVolumeSetFailDlg, CDialog)
+IMPLEMENT_DYNAMIC(CVolumeSetFailDlg, CTopPopupDialog)
 
-CVolumeSetFailDlg::CVolumeSetFailDlg(HRESULT hr, const utils::MmDeviceInfo& deviceInfo, CWnd* pParent /*=nullptr*/)
-	: CDialog(IDD_VOLUME_SET_FAIL, pParent),
+CVolumeSetFailDlg::CVolumeSetFailDlg(HRESULT hr, const utils::MmDeviceInfo& deviceInfo)
+	: CTopPopupDialog(IDD_VOLUME_SET_FAIL),
 	m_forTestPurpose(false),
     m_mmDeviceInfo(deviceInfo) {
 	m_errCodeString.Format(L"0x%08x", hr);
@@ -24,13 +24,13 @@ CVolumeSetFailDlg::~CVolumeSetFailDlg()
 
 void CVolumeSetFailDlg::DoDataExchange(CDataExchange* pDX)
 {
-	CDialog::DoDataExchange(pDX);
+	CTopPopupDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_DEVICE_INFO_REPORT, m_deviceInfoReport);
 	DDX_Text(pDX, IDC_ERR_CODE_DISPLAY, m_errCodeString);
 }
 
 
-BEGIN_MESSAGE_MAP(CVolumeSetFailDlg, CDialog)
+BEGIN_MESSAGE_MAP(CVolumeSetFailDlg, CTopPopupDialog)
 	ON_WM_CTLCOLOR()
 	ON_WM_CLOSE()
 	ON_BN_CLICKED(IDYES, &CVolumeSetFailDlg::OnBnClickedYes)
@@ -40,18 +40,8 @@ END_MESSAGE_MAP()
 
 // CVolumeSetFailDlg 消息处理程序
 
-void CVolumeSetFailDlg::PostNcDestroy() {
-	CDialog::PostNcDestroy();
-
-	delete this;
-}
-
-void CVolumeSetFailDlg::OnOK() {
-	// intentionally kept empty
-}
-
 HBRUSH CVolumeSetFailDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
-	HBRUSH hbr = CDialog::OnCtlColor(pDC, pWnd, nCtlColor);
+	HBRUSH hbr = CTopPopupDialog::OnCtlColor(pDC, pWnd, nCtlColor);
 
 	if (pWnd->GetDlgCtrlID() == IDC_TIP_STATIC) {
 		pDC->SetTextColor(RGB(100, 100, 100));
@@ -62,32 +52,12 @@ HBRUSH CVolumeSetFailDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 }
 
 BOOL CVolumeSetFailDlg::OnInitDialog() {
-	CDialog::OnInitDialog();
-
-	GetSystemMenu(FALSE)->EnableMenuItem(SC_CLOSE, MF_GRAYED | MF_BYCOMMAND);
+	CTopPopupDialog::OnInitDialog();
 
 	m_deviceInfoReport.SetDeviceInfo(m_mmDeviceInfo);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
-}
-
-void CVolumeSetFailDlg::OnClose() {
-	// intentionally kept empty
-}
-
-BOOL CVolumeSetFailDlg::PreTranslateMessage(MSG* pMsg) {
-	if (pMsg->message == WM_KEYDOWN) {
-		if (pMsg->wParam == VK_ESCAPE) {
-			return TRUE; // block this message
-		}
-	}
-
-	return CDialog::PreTranslateMessage(pMsg);
-}
-
-void CVolumeSetFailDlg::OnCancel() {
-	// intentionally kept empty
 }
 
 void CVolumeSetFailDlg::OnBnClickedYes() {

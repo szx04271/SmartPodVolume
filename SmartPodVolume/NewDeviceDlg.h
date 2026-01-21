@@ -1,15 +1,16 @@
 ﻿#pragma once
 #include "DeviceInfoListCtrl.h"
+#include "TopPopupDialog.h"
 
 
 // CNewDeviceDlg 对话框
 
-class CNewDeviceDlg : public CDialog
+class CNewDeviceDlg : public CTopPopupDialog
 {
 	DECLARE_DYNAMIC(CNewDeviceDlg)
 
 public:
-	CNewDeviceDlg(const utils::MmDeviceInfo& info, const CComPtr<IMMDevice>& device, CWnd* pParent = nullptr);   // 标准构造函数
+	CNewDeviceDlg(const utils::MmDeviceInfo& info, const CComPtr<IMMDevice>& device);   // 标准构造函数
 	virtual ~CNewDeviceDlg();
 
 // 对话框数据
@@ -29,13 +30,8 @@ public:
 	utils::MmDeviceInfo m_mmDeviceInfo;
 	virtual BOOL OnInitDialog();
 	CDeviceInfoListCtrl m_deviceInfoReport;
-	virtual void PostNcDestroy();
-	virtual void OnOK();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
-	afx_msg void OnClose();
-	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnBnClickedYes();
 	afx_msg void OnBnClickedNo();
-	virtual void OnCancel();
 	afx_msg void OnDestroy();
 };

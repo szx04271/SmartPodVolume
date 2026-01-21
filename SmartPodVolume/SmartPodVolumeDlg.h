@@ -7,14 +7,14 @@
 #include "NewDeviceDlg.h"
 #include "MyVolumeChangeCallback.h"
 
-// CSmartPodVolumeDlg 对话�?
+// CSmartPodVolumeDlg 对话
 class CSmartPodVolumeDlg : public CDialog
 {
-// 构�?
+// 构
 public:
-	CSmartPodVolumeDlg(CWnd* pParent = nullptr);	// 标准构造函�?
+	CSmartPodVolumeDlg(CWnd* pParent = nullptr);	// 标准构造函
 
-// 对话框数�?
+// 对话框数据
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_SMARTPODVOLUME_DIALOG };
 #endif
@@ -27,8 +27,9 @@ public:
 protected:
 	HICON m_hIcon;
 	HDEVNOTIFY m_hDevNotify = nullptr;
+	bool m_testMode = false;
 
-	// 生成的消息映射函�?
+	// 生成的消息映射函
 	virtual BOOL OnInitDialog();
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();

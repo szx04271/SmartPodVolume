@@ -112,8 +112,6 @@ BOOL CSmartPodVolumeApp::InitInstance()
 		spdlog::error(L"Dialog creation failed, the application will unexpectedly terminate.");
 	}
 
-cleanup:
-
 #if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
 	ControlBarCleanUp();
 #endif
