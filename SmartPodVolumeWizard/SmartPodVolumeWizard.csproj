@@ -108,8 +108,8 @@
     <Compile Include="BoolToChineseConverter.cs" />
     <Compile Include="ConfigReadWrite.cs" />
     <Compile Include="ConfKey.cs" />
+    <Compile Include="NativeDarkThemer.cs" />
     <Compile Include="ViewModelBase.cs" />
-    <Compile Include="WindowUtils.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

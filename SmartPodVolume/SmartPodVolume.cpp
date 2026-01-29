@@ -8,6 +8,8 @@
 #include "SmartPodVolumeDlg.h"
 #include "utils.h"
 #include "constants.h"
+#include "../CommCtrlDarkThemer/CommCtrlDarkThemer.h"
+#pragma comment(lib,"CommCtrlDarkThemer.lib")
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -92,6 +94,9 @@ BOOL CSmartPodVolumeApp::InitInstance()
 		return FALSE;
 	}
 
+	DarkThemer_ForceAppDark(true);
+	DarkThemer_InstallForCurrentThread();
+
 	CSmartPodVolumeDlg dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
@@ -115,6 +120,8 @@ BOOL CSmartPodVolumeApp::InitInstance()
 #if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
 	ControlBarCleanUp();
 #endif
+
+	DarkThemer_UninstallForCurrentThread();
 
 	if (SUCCEEDED(hr)) {
 		CoUninitialize();

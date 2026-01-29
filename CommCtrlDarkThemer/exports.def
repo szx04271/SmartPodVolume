@@ -1,0 +1,5 @@
+﻿LIBRARY CommCtrlDarkThemer
+EXPORTS
+	DarkThemer_InstallForCurrentThread
+	DarkThemer_UninstallForCurrentThread
+	DarkThemer_ForceAppDark

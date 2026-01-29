@@ -21,6 +21,7 @@ namespace SmartPodVolumeWizard
         public App()
         {
             this.Startup += App_Startup;
+            this.Exit += App_Exit;
         }
 
         private void App_Startup(object sender, StartupEventArgs e)
@@ -34,6 +35,14 @@ namespace SmartPodVolumeWizard
                     MessageBoxImage.Asterisk);
                 Shutdown();
             }
+
+            NativeDarkThemer.DarkThemer_ForceAppDark(1);
+            NativeDarkThemer.DarkThemer_InstallForCurrentThread();
+        }
+
+        private void App_Exit(object sender, ExitEventArgs e)
+        {
+            NativeDarkThemer.DarkThemer_UninstallForCurrentThread();
         }
     }
 }

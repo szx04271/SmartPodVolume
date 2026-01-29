@@ -63,6 +63,7 @@ BOOL CSmartPodVolumeDlg::OnInitDialog() {
 		m_testMode = true;
 
 		EnableWindow(TRUE);
+		ModifyStyleEx(WS_EX_NOACTIVATE, 0);
 	}
 
 	DEV_BROADCAST_DEVICEINTERFACE_W notificationFilter = {};
