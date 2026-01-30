@@ -4,6 +4,5 @@
              xmlns:local="clr-namespace:SmartPodVolumeWizard"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
     </Application.Resources>
 </Application>

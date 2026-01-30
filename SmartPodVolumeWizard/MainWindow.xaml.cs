@@ -19,6 +19,8 @@ using System.Reflection;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.Remoting.Messaging;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
 
 namespace SmartPodVolumeWizard
 {
@@ -69,10 +71,32 @@ namespace SmartPodVolumeWizard
 
         private int _updatesToBeIgnored = 0;
 
+        [DllImport("dwmapi.dll")]
+        static extern Int32 DwmSetWindowAttribute(IntPtr hwnd, UInt32 attribIndex, ref int data, UInt32 dataSize);
+
+        bool EnableDarkTitleBar(bool enable)
+        {
+            const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+            Int32 value = enable ? 1 : 0;
+            return DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ref value, sizeof(Int32)) >= 0;
+        }
+
+        void UpdateTitleBar() => EnableDarkTitleBar(ColorThemeGetter.IsDarkModeEnabled());
+
         public MainWindow()
         {
             InitializeComponent();
             Loaded += MainWindow_Loaded;
+            Loaded += (s, e) => UpdateTitleBar();
+
+            SystemEvents.UserPreferenceChanged += (s, e) =>
+            {
+                if (e.Category == UserPreferenceCategory.General)
+                {
+                    Dispatcher.Invoke(() => UpdateTitleBar());
+                }
+            };
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -222,6 +246,9 @@ namespace SmartPodVolumeWizard
 
             WhiteListView.Items.Refresh();
             BlackListView.Items.Refresh();
+            
+            ListViewWidthRefresher.RefreshWidths(WhiteListView);
+            ListViewWidthRefresher.RefreshWidths(BlackListView);
         }
 
         private void RefreshListsBtn_Click(object sender, RoutedEventArgs e)

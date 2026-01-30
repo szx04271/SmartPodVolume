@@ -8,6 +8,14 @@ LRESULT CALLBACK WndCreateMonitorProc(int code, WPARAM wParam, LPARAM lParam) {
 
 	auto hwnd = (HWND)wParam;
 	if (!t_subclassedWnds.contains(hwnd)) {
+		auto cbtCreateWnd = (CBT_CREATEWNDW*)lParam;
+		const auto WPF_CLASS_PREFIX = L"HwndWrapper[";
+		if (!IS_INTRESOURCE(cbtCreateWnd->lpcs->lpszClass) &&
+			wcsncmp(cbtCreateWnd->lpcs->lpszClass, WPF_CLASS_PREFIX, wcslen(WPF_CLASS_PREFIX)) == 0) {
+			// dont subclass WPF windows
+			return CallNextHookEx(nullptr, code, wParam, lParam);
+		}
+
 		auto subclassSuccess = SetWindowSubclass(hwnd, DarkThemeSubclassProc, DARK_THEME_SUBCLASS_ID, 0);
 		if (subclassSuccess) {
 			t_subclassedWnds.emplace(hwnd);

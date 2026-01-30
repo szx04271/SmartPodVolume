@@ -14,6 +14,16 @@ namespace SmartPodVolumeWizard
         {
             if (value is bool boolValue)
             {
+                if (parameter is string displayTexts)
+                {
+                    int separatorIndex = displayTexts.IndexOf('|');
+                    if (separatorIndex != -1 && separatorIndex != displayTexts.Length - 1)
+                    {
+                        var trueText = displayTexts.Substring(0, separatorIndex);
+                        var falseText = displayTexts.Substring(separatorIndex + 1);
+                        return boolValue ? trueText : falseText;
+                    }
+                }
                 return boolValue ? "是" : "否";
             }
             return "";

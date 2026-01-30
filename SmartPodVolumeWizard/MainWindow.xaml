@@ -6,6 +6,7 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:SmartPodVolumeWizard"
         mc:Ignorable="d"
+        Style="{DynamicResource {x:Type Window}}"
         Width="410" Height="320"
         MinWidth="400" MinHeight="270"
         WindowStartupLocation="CenterScreen">
@@ -23,18 +24,22 @@
         <Thickness x:Key="TabPagePadding">0</Thickness>
     </Window.Resources>
 
-    <Window.Style>
-        <Style TargetType="Window">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding ConfigModified}" Value="True">
-                    <Setter Property="Title" Value="SmartPodVolume 设置向导 *已修改" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding ConfigModified}" Value="False">
-                    <Setter Property="Title" Value="SmartPodVolume 设置向导" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Style>
+    <!-- 
+    若没有下面这些用Style设置标题的语句，可以在Window标签中加入以下语句来让MainWindow使用资源字
+    典中定义的Window的Style：
+    Style="{DynamicResource {x:Type Window}}"
+    但有了下面这些代码后，就要用到样式继承，【理论上】只要在Style标签中添加BasedOn属性即可：
+    <Style TargetType="Window" BasedOn="{DynamicResource {x:Type Window}}"> ... </Style>
+    但可惜这样运行会抛异常，因为BasedOn不是依赖属性，而是个普通的CLR属性，不支持DynamicResource
+    的动态更新机制。
+    解决方案是不用Style设置标题，改用IValueConverter+手动绑定Title。
+    -->
+
+    <Window.Title>
+        <Binding Path="ConfigModified" 
+                 Converter="{StaticResource BoolToChineseConverter}" 
+                 ConverterParameter="SmartPodVolume 设置向导 *已修改|SmartPodVolume 设置向导"/>
+    </Window.Title>
     
     <DockPanel Margin="5" LastChildFill="True" >
         <DockPanel DockPanel.Dock="Top" Margin="{StaticResource StackSpacingVert}" LastChildFill="False">
@@ -44,7 +49,7 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding ServiceRunning}" Value="True">
                                 <Setter Property="Text" Value="运行中" />
-                                <Setter Property="Foreground" Value="DarkGreen" />
+                                <Setter Property="Foreground" Value="{DynamicResource ServiceRunningTextBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding ServiceRunning}" Value="False">
                                 <Setter Property="Text" Value="已停止" />
@@ -57,18 +62,12 @@
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <Button x:Name="StartButton" FontWeight="Bold" Margin="{StaticResource StackSpacingHorz}" Width="100"
                         HorizontalAlignment="Right" Padding="3" Click="StartButton_Click" IsEnabled="{Binding CanStartOrEndService}">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ServiceRunning}" Value="True">
-                                    <Setter Property="Content" Value="停止服务" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding ServiceRunning}" Value="False">
-                                    <Setter Property="Content" Value="启动服务" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
+                    <Button.Content>
+                        <Binding 
+                            Path="ServiceRunning" 
+                            Converter="{StaticResource BoolToChineseConverter}"
+                            ConverterParameter="停止服务|启动服务" />
+                    </Button.Content>
                 </Button>
                 <Button x:Name="RefreshListsBtn" Content="刷新列表" Padding="3" Width="100" Click="RefreshListsBtn_Click" />
             </StackPanel>
@@ -95,11 +94,11 @@
                 <ListView x:Name="WhiteListView" SelectionMode="Single" ItemsSource="{Binding WhiteListDevices}" Margin="{StaticResource TabPagePadding}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="友好名称" DisplayMemberBinding="{Binding Value.FriendlyName}" Width="100" />
-                            <GridViewColumn Header="静音" DisplayMemberBinding="{Binding Value.Mute, Converter={StaticResource BoolToChineseConverter}}" Width="30" />
-                            <GridViewColumn Header="期望音量(%)" DisplayMemberBinding="{Binding Value.VolumePercent}" Width="70" />
-                            <GridViewColumn Header="描述" DisplayMemberBinding="{Binding Value.Description}" Width="60" />
-                            <GridViewColumn Header="MM设备ID" DisplayMemberBinding="{Binding Key}" Width="80" />
+                            <GridViewColumn Header="友好名称" DisplayMemberBinding="{Binding Value.FriendlyName}" Width="auto" />
+                            <GridViewColumn Header="静音" DisplayMemberBinding="{Binding Value.Mute, Converter={StaticResource BoolToChineseConverter}}" Width="auto" />
+                            <GridViewColumn Header="期望音量(%)" DisplayMemberBinding="{Binding Value.VolumePercent}" Width="auto" />
+                            <GridViewColumn Header="描述" DisplayMemberBinding="{Binding Value.Description}" Width="auto" />
+                            <GridViewColumn Header="MM设备ID" DisplayMemberBinding="{Binding Key}" Width="auto" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -108,9 +107,9 @@
                 <ListView x:Name="BlackListView" SelectionMode="Single" ItemsSource="{Binding BlackListDevices}" Margin="{StaticResource TabPagePadding}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="友好名称" DisplayMemberBinding="{Binding Value.FriendlyName}" Width="100" />
-                            <GridViewColumn Header="描述" DisplayMemberBinding="{Binding Value.Description}" Width="70" />
-                            <GridViewColumn Header="MM设备ID" DisplayMemberBinding="{Binding Key}" Width="100" />
+                            <GridViewColumn Header="友好名称" DisplayMemberBinding="{Binding Value.FriendlyName}" Width="auto" />
+                            <GridViewColumn Header="描述" DisplayMemberBinding="{Binding Value.Description}" Width="auto" />
+                            <GridViewColumn Header="MM设备ID" DisplayMemberBinding="{Binding Key}" Width="auto" />
                         </GridView>
                     </ListView.View>
                 </ListView>
