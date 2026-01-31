@@ -125,8 +125,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2026,1,21,1
- PRODUCTVERSION 2026,1,21,1
+ FILEVERSION 2026,1,31,1
+ PRODUCTVERSION 2026,1,31,1
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -143,12 +143,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "szx0427"
             VALUE "FileDescription", "SmartPodVolume 后台进程"
-            VALUE "FileVersion", "2026.1.21.1"
+            VALUE "FileVersion", "2026.1.31.1"
             VALUE "InternalName", "SmartPodVolume.exe"
             VALUE "LegalCopyright", "Copyright (c) 2026 szx0427"
             VALUE "OriginalFilename", "SmartPodVolume.exe"
             VALUE "ProductName", "SmartPodVolume"
-            VALUE "ProductVersion", "2026.1.21.1"
+            VALUE "ProductVersion", "2026.1.31.1"
         END
     END
     BLOCK "VarFileInfo"
