@@ -4,6 +4,8 @@
 #include "pch.h"
 #include "SmartPodVolume.h"
 #include "DeviceInfoListCtrl.h"
+#include "../CommCtrlDarkThemer/CommCtrlDarkThemer.h"
+#pragma comment(lib,"CommCtrlDarkThemer.lib")
 
 
 // CDeviceInfoListCtrl
@@ -30,7 +32,8 @@ END_MESSAGE_MAP()
 
 
 void CDeviceInfoListCtrl::PreSubclassWindow() {
-	::SetWindowTheme(GetSafeHwnd(), L"Explorer", nullptr);
+	//::SetWindowTheme(GetSafeHwnd(), L"Explorer", nullptr);
+	DarkThemer_SafeSetWindowTheme(GetSafeHwnd(), L"Explorer");
 	SetExtendedStyle(GetExtendedStyle() | LVS_EX_FULLROWSELECT);
 
 	CRect rc; GetClientRect(&rc);

@@ -46,6 +46,7 @@ BEGIN_MESSAGE_MAP(CSmartPodVolumeDlg, CDialog)
 	ON_MESSAGE(WM_NEW_DEVICE_NEEDS_REGISTRATION, &CSmartPodVolumeDlg::OnNewDeviceNeedsRegistration)
 	ON_WM_QUERYENDSESSION()
 	ON_WM_WINDOWPOSCHANGING()
+	ON_WM_SETTINGCHANGE()
 END_MESSAGE_MAP()
 
 
@@ -640,4 +641,13 @@ void CSmartPodVolumeDlg::OnWindowPosChanging(WINDOWPOS* lpwndpos) {
 		// hide main window
 		lpwndpos->flags &= ~SWP_SHOWWINDOW;
 	}
+}
+
+void CSmartPodVolumeDlg::OnSettingChange(UINT uFlags, LPCTSTR lpszSection) {
+	CDialog::OnSettingChange(uFlags, lpszSection);
+
+	if (uFlags != 0) {
+		return;
+	}
+	theApp.UpdateTheme();
 }

@@ -14,3 +14,6 @@ CCDT_API LSTATUS DarkThemer_UninstallForCurrentThread();
 // `ifDark` is a boolean intentionally decleared as uchar to
 // clearly show its size for other languages to call it.
 CCDT_API DWORD DarkThemer_ForceAppDark(unsigned char ifDark);
+
+// Interthread calling is forbidden!
+CCDT_API std::pair<HRESULT, std::wstring> DarkThemer_SafeSetWindowTheme(HWND hwnd, LPCWSTR subAppName);

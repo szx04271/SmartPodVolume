@@ -109,12 +109,26 @@ namespace utils {
 		return WriteConfigFile(configJson.dump(4));
 	}
 
-	// this should be called for each control of a window expected to be dark
-	inline auto SetControlDarkTheme(HWND hControl) noexcept {
-		return SetWindowTheme(hControl, L"DarkMode_Explorer", nullptr);
+	inline bool Is1903OrGreater() {
+		static char ans = -1;
+		if (ans != -1) {
+			return ans;
+		}
+
+		long(WINAPI * RtlGetVersion)(LPOSVERSIONINFOW);
+		*(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion");
+		OSVERSIONINFOW osInfo = { sizeof(osInfo) };
+		if (RtlGetVersion != NULL) RtlGetVersion(&osInfo);
+		ans = (osInfo.dwBuildNumber >= 18362);
+
+		return ans;
 	}
 
 	inline bool IsSystemDarkThemeEnabled() noexcept {
+		if (!Is1903OrGreater()) {
+			return false;
+		}
+
 		DWORD value = -1;
 
 		DWORD size = sizeof(value);

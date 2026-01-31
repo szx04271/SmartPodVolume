@@ -8,7 +8,10 @@
 #include <dwmapi.h>
 #include <set>
 #include <memory>
+#include <map>
 #include <Vssym32.h>
+#include <string>
+#include <atltrace.h>
 
 #pragma comment(lib,"uxtheme.lib")
 #pragma comment(lib,"dwmapi.lib")

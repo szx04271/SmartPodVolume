@@ -1,51 +1,39 @@
 ﻿#include "pch.h"
 #include "PrivateDecl.h"
+#include "CommCtrlDarkThemer.h"
 
 LRESULT CALLBACK WndCreateMonitorProc(int code, WPARAM wParam, LPARAM lParam) {
 	if (/* code < 0 || */ code != HCBT_CREATEWND) {
 		return CallNextHookEx(nullptr, code, wParam, lParam);
 	}
 
-	auto hwnd = (HWND)wParam;
-	if (!t_subclassedWnds.contains(hwnd)) {
-		auto cbtCreateWnd = (CBT_CREATEWNDW*)lParam;
-		const auto WPF_CLASS_PREFIX = L"HwndWrapper[";
-		if (!IS_INTRESOURCE(cbtCreateWnd->lpcs->lpszClass) &&
-			wcsncmp(cbtCreateWnd->lpcs->lpszClass, WPF_CLASS_PREFIX, wcslen(WPF_CLASS_PREFIX)) == 0) {
-			// dont subclass WPF windows
-			return CallNextHookEx(nullptr, code, wParam, lParam);
-		}
-
-		auto subclassSuccess = SetWindowSubclass(hwnd, DarkThemeSubclassProc, DARK_THEME_SUBCLASS_ID, 0);
-		if (subclassSuccess) {
-			t_subclassedWnds.emplace(hwnd);
-		}
-	}
+	TrySubclassWindow((HWND)wParam);
 
 	return CallNextHookEx(nullptr, code, wParam, lParam);
+}
+
+BOOL CALLBACK OuterWndEnumProc(HWND hwnd, LPARAM lParam) {
+	TrySubclassWindow(hwnd);
+	InitializeForWindow(hwnd);
+	InvalidateRect(hwnd, nullptr, TRUE);
+	UpdateWindow(hwnd);
+
+	EnumChildWindows(hwnd,
+		[](HWND child, LPARAM) -> BOOL {
+		TrySubclassWindow(child);
+		InitializeForWindow(child);
+		InvalidateRect(child, nullptr, TRUE);
+		UpdateWindow(child);
+		return TRUE;
+	}, 0);
+
+	return TRUE;
 }
 
 LRESULT CALLBACK DarkThemeSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, 
 	UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (uMsg == WM_SHOWWINDOW) {
-		auto style = GetWindowLongW(hWnd, GWL_STYLE);
-		if (style & WS_CAPTION) {
-			// use dark title bar
-			BOOL value = TRUE;
-			DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
-		}
-
-		WCHAR className[1024];
-		int charsWritten = GetClassNameW(hWnd, className, 1024);
-		if (charsWritten && _wcsicmp(className, L"SysListView32") == 0) {
-			// special handling for list view (the other part in WM_THEMECHANGE)
-			AllowWindowDarkMode(hWnd, true);
-			SetWindowTheme(hWnd, L"Explorer", nullptr);
-		}
-		else {
-			// use dark controls
-			SetWindowTheme(hWnd, L"DarkMode_Explorer", nullptr);
-		}
+		InitializeForWindow(hWnd);
 	}
 	else if (uMsg == WM_CTLCOLORDLG || uMsg == WM_CTLCOLORBTN || uMsg == WM_CTLCOLORSTATIC) {
 		if (uMsg == WM_CTLCOLORSTATIC) {
@@ -55,6 +43,7 @@ LRESULT CALLBACK DarkThemeSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			SetBkColor(hdc, DARK_BK_COLOR);
 			if (GetTextColor(hdc) == RGB(0, 0, 0)) {
 				SetTextColor(hdc, RGB(255, 255, 255));
+				t_toRepaintWnds.emplace(hWnd);
 			}
 		}
 		// use dark background for dialogs
@@ -63,6 +52,12 @@ LRESULT CALLBACK DarkThemeSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 	else if (uMsg == WM_NCDESTROY) {
 		RemoveWindowSubclass(hWnd, DarkThemeSubclassProc, DARK_THEME_SUBCLASS_ID);
 		t_subclassedWnds.erase(hWnd);
+		t_darkTitleBarWnds.erase(hWnd);
+		t_setThemeListCtrls.erase(hWnd);
+		t_setThemeWnds.erase(hWnd);
+		t_toRepaintWnds.erase(hWnd);
+		t_setBkColorListCtrls.erase(hWnd);
+		t_setTextColorListCtrls.erase(hWnd);
 	}
 	else if (uMsg == WM_THEMECHANGED) {
 		// special handling for list view
@@ -74,15 +69,28 @@ LRESULT CALLBACK DarkThemeSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			if (theme) {
 				COLORREF color;
 
-				HRESULT hr = GetThemeColor(theme, 0, 0, TMT_TEXTCOLOR, &color);
-				if (SUCCEEDED(hr)) {
-					ListView_SetTextColor(hWnd, color);
+				HRESULT hr;
+				if (!t_setTextColorListCtrls.contains(hWnd)) {
+					hr = GetThemeColor(theme, 0, 0, TMT_TEXTCOLOR, &color);
+					if (SUCCEEDED(hr)) {
+						auto oriTextColor = ListView_GetTextColor(hWnd);
+						ListView_SetTextColor(hWnd, color);
+						t_setTextColorListCtrls.emplace(hWnd, oriTextColor);
+					}
 				}
 
-				hr = GetThemeColor(theme, 0, 0, TMT_FILLCOLOR, &color);
-				if (SUCCEEDED(hr)) {
-					ListView_SetTextBkColor(hWnd, color);
-					ListView_SetBkColor(hWnd, color);
+				if (!t_setBkColorListCtrls.contains(hWnd)) {
+					hr = GetThemeColor(theme, 0, 0, TMT_FILLCOLOR, &color);
+					if (SUCCEEDED(hr)) {
+						ListControlBkColor originalColor{};
+						originalColor.textBkColor = ListView_GetTextBkColor(hWnd);
+						originalColor.bkColor = ListView_GetBkColor(hWnd);
+
+						ListView_SetTextBkColor(hWnd, color);
+						ListView_SetBkColor(hWnd, color);
+						
+						t_setBkColorListCtrls.emplace(hWnd, originalColor);
+					}
 				}
 
 				CloseThemeData(theme);
@@ -103,6 +111,8 @@ LRESULT CALLBACK DarkThemeSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			HDC hdc = BeginPaint(hWnd, &ps);
 			FillRect(hdc, &ps.rcPaint, t_darkBkBrush);
 			EndPaint(hWnd, &ps);
+
+			t_toRepaintWnds.emplace(hWnd);
 
 			return 0;
 		}
@@ -127,4 +137,47 @@ BOOL AllowWindowDarkMode(HWND hwnd, bool allow) {
 
 	FreeLibrary(hUxTheme);
 	return ret;
+}
+
+void TrySubclassWindow(HWND hwnd) {
+	if (!t_subclassedWnds.contains(hwnd)) {
+		WCHAR className[1024];
+		GetClassNameW(hwnd, className, 1024);
+
+		const auto WPF_CLASS_PREFIX = L"HwndWrapper[";
+		if (wcsncmp(className, WPF_CLASS_PREFIX, wcslen(WPF_CLASS_PREFIX)) == 0) {
+			// dont subclass WPF windows
+			return;
+		}
+
+		auto subclassSuccess = SetWindowSubclass(hwnd, DarkThemeSubclassProc, DARK_THEME_SUBCLASS_ID, 0);
+		if (subclassSuccess) {
+			t_subclassedWnds.emplace(hwnd);
+		}
+	}
+}
+
+void InitializeForWindow(HWND hwnd) {
+	auto style = GetWindowLongW(hwnd, GWL_STYLE);
+	if ((style & WS_CAPTION) && !t_darkTitleBarWnds.contains(hwnd)) {
+		// use dark title bar
+		BOOL value = TRUE;
+		DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
+		t_darkTitleBarWnds.emplace(hwnd);
+	}
+
+	WCHAR className[1024];
+	int charsWritten = GetClassNameW(hwnd, className, 1024);
+	if (charsWritten && _wcsicmp(className, L"SysListView32") == 0 &&
+		!t_setThemeListCtrls.contains(hwnd)) {
+		// special handling for list view (the other part in WM_THEMECHANGE)
+		AllowWindowDarkMode(hwnd, true);
+		t_setThemeListCtrls.emplace(hwnd);
+		SetWindowTheme(hwnd, L"Explorer", nullptr);
+	}
+	else if (!t_setThemeWnds.contains(hwnd)) {
+		// use dark controls
+		t_setThemeWnds.emplace(hwnd);
+		HRESULT hr = SetWindowTheme(hwnd, L"DarkMode_Explorer", nullptr);
+	}
 }

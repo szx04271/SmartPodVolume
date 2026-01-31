@@ -20,9 +20,11 @@ class CSmartPodVolumeApp : public CWinApp
 private:
 	std::shared_ptr<spdlog::logger> m_logger;
 	HANDLE m_instanceMutex = nullptr;
+	bool m_darkMode = false;
 
 public:
 	CSmartPodVolumeApp();
+	void UpdateTheme();
 
 // 重写
 public:

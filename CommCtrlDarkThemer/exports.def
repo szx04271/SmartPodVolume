@@ -3,3 +3,4 @@ EXPORTS
 	DarkThemer_InstallForCurrentThread
 	DarkThemer_UninstallForCurrentThread
 	DarkThemer_ForceAppDark
+	DarkThemer_SafeSetWindowTheme

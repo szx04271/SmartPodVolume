@@ -83,4 +83,5 @@ public:
 	
 	void WizardCommunicationProc() noexcept;
 	afx_msg void OnWindowPosChanging(WINDOWPOS* lpwndpos);
+	afx_msg void OnSettingChange(UINT uFlags, LPCTSTR lpszSection);
 };

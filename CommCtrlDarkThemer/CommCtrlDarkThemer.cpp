@@ -14,6 +14,9 @@ CCDT_API LSTATUS DarkThemer_InstallForCurrentThread()
 	}
 	t_darkBkBrush = CreateSolidBrush(DARK_BK_COLOR);
 	t_hHook = hhook;
+
+	EnumThreadWindows(GetCurrentThreadId(), OuterWndEnumProc, 0); // apply for existing windows (if any)
+
 	return ERROR_SUCCESS;
 }
 
@@ -34,13 +37,59 @@ CCDT_API LSTATUS DarkThemer_UninstallForCurrentThread()
 		t_darkBkBrush = nullptr;
 	}
 
-	if (!t_subclassedWnds.empty()) {
-		for (auto hwnd : t_subclassedWnds) {
-			RemoveWindowSubclass(hwnd, DarkThemeSubclassProc, DARK_THEME_SUBCLASS_ID);
-		}
-		t_subclassedWnds.clear();
+	// remove subclass first
+	for (auto hwnd : t_subclassedWnds) {
+		RemoveWindowSubclass(hwnd, DarkThemeSubclassProc, DARK_THEME_SUBCLASS_ID);
 	}
+	t_subclassedWnds.clear();
 
+	for (auto hwnd : t_darkTitleBarWnds) {
+		BOOL value = FALSE;
+		DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
+	}
+	t_darkTitleBarWnds.clear();
+
+	for (auto hwnd : t_setThemeListCtrls) {
+		AllowWindowDarkMode(hwnd, false);
+
+		auto externallySetTheme = t_externallySetTheme.find(hwnd);
+		if (externallySetTheme != t_externallySetTheme.end()) {
+			SetWindowTheme(hwnd, externallySetTheme->second.c_str(), nullptr);
+		}
+		else {
+			SetWindowTheme(hwnd, nullptr, nullptr);
+		}
+	}
+	t_setThemeListCtrls.clear();
+
+	for (auto hwnd : t_setThemeWnds) {
+		auto externallySetTheme = t_externallySetTheme.find(hwnd);
+		if (externallySetTheme != t_externallySetTheme.end()) {
+			SetWindowTheme(hwnd, externallySetTheme->second.c_str(), nullptr);
+		}
+		else {
+			SetWindowTheme(hwnd, nullptr, nullptr);
+		}
+	}
+	t_setThemeWnds.clear();
+
+	for (auto& [hwnd, clrs] : t_setBkColorListCtrls) {
+		ListView_SetTextBkColor(hwnd, clrs.textBkColor);
+		ListView_SetBkColor(hwnd, clrs.bkColor);
+	}
+	t_setBkColorListCtrls.clear();
+
+	for (auto& [hwnd, clr] : t_setTextColorListCtrls) {
+		ListView_SetTextColor(hwnd, clr);
+	}
+	t_setTextColorListCtrls.clear();
+
+	for (auto hwnd : t_toRepaintWnds) {
+		InvalidateRect(hwnd, nullptr, TRUE);
+		UpdateWindow(hwnd);
+	}
+	t_toRepaintWnds.clear();
+	
 	return ERROR_SUCCESS;
 }
 
@@ -63,4 +112,23 @@ CCDT_API DWORD DarkThemer_ForceAppDark(unsigned char ifDark) {
 	return ret;
 }
 
+CCDT_API std::pair<HRESULT, std::wstring> DarkThemer_SafeSetWindowTheme(HWND hwnd, LPCWSTR subAppName)
+{
+	std::pair<HRESULT, std::wstring> ret;
+	if (!subAppName) {
+		ret.first = E_INVALIDARG;
+		return ret;
+	}
+
+	HRESULT hr = SetWindowTheme(hwnd, subAppName, nullptr);
+	ret.first = hr;
+	if (FAILED(hr)) {
+		return ret;
+	}
+	if (t_externallySetTheme.contains(hwnd)) {
+		ret.second = std::move(t_externallySetTheme.at(hwnd));
+	}
+	t_externallySetTheme[hwnd] = subAppName;
+	return ret;
+}
 

@@ -94,8 +94,7 @@ BOOL CSmartPodVolumeApp::InitInstance()
 		return FALSE;
 	}
 
-	DarkThemer_ForceAppDark(true);
-	DarkThemer_InstallForCurrentThread();
+	UpdateTheme();
 
 	CSmartPodVolumeDlg dlg;
 	m_pMainWnd = &dlg;
@@ -121,7 +120,9 @@ BOOL CSmartPodVolumeApp::InitInstance()
 	ControlBarCleanUp();
 #endif
 
-	DarkThemer_UninstallForCurrentThread();
+	if (m_darkMode) {
+		DarkThemer_UninstallForCurrentThread();
+	}
 
 	if (SUCCEEDED(hr)) {
 		CoUninitialize();
@@ -134,3 +135,17 @@ BOOL CSmartPodVolumeApp::InitInstance()
 	return FALSE;
 }
 
+void CSmartPodVolumeApp::UpdateTheme() {
+	if (utils::IsSystemDarkThemeEnabled()) {
+		if (!m_darkMode) {
+			DarkThemer_ForceAppDark(true);
+			DarkThemer_InstallForCurrentThread();
+			m_darkMode = true;
+		}
+	}
+	else if (m_darkMode) {
+		DarkThemer_ForceAppDark(false);
+		DarkThemer_UninstallForCurrentThread();
+		m_darkMode = false;
+	}
+}
